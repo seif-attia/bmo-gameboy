@@ -7,9 +7,11 @@
 #include "SPI.h"
 #include "menu.h"
 #include "dino.h"
+#include "bmo.h"
 
 typedef enum
 {
+    BMO_SCREEN,
     MENU,
     TETRIS,
     SNAKE,
@@ -23,24 +25,38 @@ int main(void)
     TFT_INIT();
     controller_init();
 
-    TFT_FillScreen(TFT_BLACK);
+    TFT_DrawBMOFace();
 
-    TFT_DrawString(20, 20, "BMO game", TFT_RED, TFT_BLACK, 1);
-
-    while (!get_key(START))
-    {
-    
-    }
-
-    TFT_FillScreen(TFT_BLACK);
-
-    menu();
-
-   GAMESTATE state = MENU;
+    GAMESTATE state = BMO_SCREEN;
+    uint16_t blink_counter = 0;
 
     while (true)
     {
-        if (state == MENU)
+        if (state == BMO_SCREEN)
+        {
+            _delay_ms(20);
+            blink_counter++;
+
+            // Blink every ~2.5 seconds (125 ticks * 20ms = 2500ms)
+            if (blink_counter == 125)
+            {
+                TFT_BMO_SetEyes(1); // Close eyes
+            }
+            else if (blink_counter >= 133) // Closed for 8 * 20ms = 160ms
+            {
+                TFT_BMO_SetEyes(0); // Re-open eyes
+                blink_counter = 0;
+            }
+
+            if (get_key(START))
+            {
+                TFT_FillScreen(TFT_BLACK);
+                menu();
+                state = MENU;
+                blink_counter = 0;
+            }
+        }
+        else if (state == MENU)
         {
             if (get_key(DOWN))
             {
@@ -52,6 +68,14 @@ int main(void)
             {
                 menu_up();
                 menu();
+            }
+
+            if (get_key(BACK))
+            {
+                // Return to BMO face screen
+                TFT_DrawBMOFace();
+                state = BMO_SCREEN;
+                blink_counter = 0;
             }
 
             if (get_key(START))
@@ -75,9 +99,11 @@ int main(void)
                 }
                 else if (menu_get_selected() == 3)
                 {
+                    state = DINO;
                     play_dino();
                     TFT_FillScreen(TFT_BLACK);
                     menu();
+                    state = MENU;
                 }
             }
         }
