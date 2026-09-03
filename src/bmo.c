@@ -10,7 +10,7 @@ void TFT_DrawBMOFace(void)
     TFT_BMO_SetEyes(0);
 
     // 3. Draw BMO Mouth (pixel-accurate smiling mouth matching reference image)
-    
+
     // Outer black mouth shape (creates black border & outline)
     TFT_DrawHLine(64, 69, 33, BMO_BLACK);
     TFT_DrawHLine(61, 70, 39, BMO_BLACK);
@@ -64,6 +64,7 @@ void TFT_DrawBMOFace(void)
 
 void TFT_BMO_SetEyes(uint8_t closed)
 {
+
     if (closed)
     {
         // Erase eye circles with background color

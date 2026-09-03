@@ -91,3 +91,10 @@ int8_t timer_set_interval_arg(uint32_t delay_ms, void (*cb)(void *arg), void *ar
  * @note Callbacks are executed in the main execution thread context (non-blocking ISR).
  */
 void timer_update();
+
+/**
+ * @brief Pass the timer_id parameter to cancel the set timer
+ *
+ * @param timer_id
+ */
+void timer_cancel(uint8_t timer_id);
