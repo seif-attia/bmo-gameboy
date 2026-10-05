@@ -8,13 +8,13 @@
 #define delay_ms(x) _delay_ms(x)
 
 // Dear programmer:
-// When I wrote this code, only god and 
+// When I wrote this code, only god and
 // I knew how it worked.
 // Now, only god knows it!
 //
 // Therefore, if you are trying to optimize
 // this routine and it fails (most surely),
-// please increase this counter as a 
+// please increase this counter as a
 // warning for the next person:
 //
 // total_hours_wasted_here = 254
@@ -186,7 +186,8 @@ void TFT_DrawPixel(uint8_t x, uint8_t y, uint16_t color)
 void TFT_FillRect(int16_t x, int16_t y, uint8_t w, uint8_t h, uint16_t color)
 {
 
-    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + w) <= 0 || (y + h) <= 0) {
+    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + w) <= 0 || (y + h) <= 0)
+    {
         return;
     }
 
@@ -197,18 +198,21 @@ void TFT_FillRect(int16_t x, int16_t y, uint8_t w, uint8_t h, uint16_t color)
     // 3. Clip positive ending coordinates
     int16_t x1 = x + w - 1;
     int16_t y1 = y + h - 1;
-    if (x1 >= TFT_WIDTH)  x1 = TFT_WIDTH - 1;
-    if (y1 >= TFT_HEIGHT) y1 = TFT_HEIGHT - 1;
+    if (x1 >= TFT_WIDTH)
+        x1 = TFT_WIDTH - 1;
+    if (y1 >= TFT_HEIGHT)
+        y1 = TFT_HEIGHT - 1;
 
     // 4. Set hardware display boundary window
     TFT_SetAddrWindow((uint8_t)x0, (uint8_t)y0, (uint8_t)x1, (uint8_t)y1);
 
     // 5. Send pixel stream
     uint8_t high_byte = (uint8_t)(color >> 8);
-    uint8_t low_byte  = (uint8_t)(color & 0xFF);
+    uint8_t low_byte = (uint8_t)(color & 0xFF);
     uint16_t total_pixels = (uint16_t)(x1 - x0 + 1) * (uint16_t)(y1 - y0 + 1);
 
-    for (uint16_t i = 0; i < total_pixels; i++) {
+    for (uint16_t i = 0; i < total_pixels; i++)
+    {
         TFT_sendData(high_byte);
         TFT_sendData(low_byte);
     }
@@ -328,6 +332,7 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
 {
     // 1. Draw a central vertical line to cover the diameter along the Y-axis
     TFT_DrawVLine(x0, y0 - r, 2 * r + 1, color);
+    TFT_DrawHLine(x0 - r, y0, 2 * r + 1, color);
 
     int16_t f = 1 - r;
     int16_t ddF_x = 1;
@@ -356,17 +361,21 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
     }
 }
 
-
-    void TFT_DrawChar_Fast(uint8_t x, uint8_t y, char c, uint16_t color, uint16_t bg_color, uint8_t size) {
-    if (c < 32 || c > 126) c = '?';
+void TFT_DrawChar_Fast(uint8_t x, uint8_t y, char c, uint16_t color, uint16_t bg_color, uint8_t size)
+{
+    if (c < 32 || c > 126)
+        c = '?';
 
     uint8_t box_w = 6 * size; // 5 glyph columns + 1 spacing column
     uint8_t box_h = 8 * size; // 8 rows tall
 
     // Clipping check
-    if ((x >= TFT_WIDTH) || (y >= TFT_HEIGHT)) return;
-    if ((x + box_w - 1) >= TFT_WIDTH)  box_w = TFT_WIDTH - x;
-    if ((y + box_h - 1) >= TFT_HEIGHT) box_h = TFT_HEIGHT - y;
+    if ((x >= TFT_WIDTH) || (y >= TFT_HEIGHT))
+        return;
+    if ((x + box_w - 1) >= TFT_WIDTH)
+        box_w = TFT_WIDTH - x;
+    if ((y + box_h - 1) >= TFT_HEIGHT)
+        box_h = TFT_HEIGHT - y;
 
     // 1. Open ONE address window for the entire character bounding box
     TFT_SetAddrWindow(x, y, x + box_w - 1, y + box_h - 1);
@@ -380,13 +389,17 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
     uint16_t font_index = (c - 32) * 5;
 
     // 2. Stream row-by-row (top to bottom)
-    for (uint8_t r = 0; r < 8; r++) {
-        for (uint8_t r_scale = 0; r_scale < size; r_scale++) {
+    for (uint8_t r = 0; r < 8; r++)
+    {
+        for (uint8_t r_scale = 0; r_scale < size; r_scale++)
+        {
             uint8_t curr_y_offset = (r * size) + r_scale;
-            if (curr_y_offset >= box_h) break;
+            if (curr_y_offset >= box_h)
+                break;
 
             // Stream 5 glyph columns
-            for (uint8_t c_idx = 0; c_idx < 5; c_idx++) {
+            for (uint8_t c_idx = 0; c_idx < 5; c_idx++)
+            {
                 // Read the vertical line slice and extract bit at row 'r'
                 uint8_t line = pgm_read_byte(&Font5x7[font_index + c_idx]);
                 uint8_t is_set = (line >> r) & 0x01;
@@ -395,9 +408,11 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
                 uint8_t lo = is_set ? fg_lo : bg_lo;
 
                 // Stream pixel horizontally for scaled width
-                for (uint8_t c_scale = 0; c_scale < size; c_scale++) {
+                for (uint8_t c_scale = 0; c_scale < size; c_scale++)
+                {
                     uint8_t curr_x_offset = (c_idx * size) + c_scale;
-                    if (curr_x_offset < box_w) {
+                    if (curr_x_offset < box_w)
+                    {
                         TFT_sendData(hi);
                         TFT_sendData(lo);
                     }
@@ -405,9 +420,11 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
             }
 
             // Stream 1 spacing column (always background color)
-            for (uint8_t c_scale = 0; c_scale < size; c_scale++) {
+            for (uint8_t c_scale = 0; c_scale < size; c_scale++)
+            {
                 uint8_t curr_x_offset = (5 * size) + c_scale;
-                if (curr_x_offset < box_w) {
+                if (curr_x_offset < box_w)
+                {
                     TFT_sendData(bg_hi);
                     TFT_sendData(bg_lo);
                 }
@@ -415,18 +432,24 @@ void TFT_FillCircle(uint8_t x0, uint8_t y0, uint8_t r, uint16_t color)
         }
     }
 }
-void TFT_DrawString(uint8_t x, uint8_t y, const char *str, uint16_t color, uint16_t bg_color, uint8_t size) {
+void TFT_DrawString(uint8_t x, uint8_t y, const char *str, uint16_t color, uint16_t bg_color, uint8_t size)
+{
     uint8_t current_x = x;
     uint8_t current_y = y;
 
-    while (*str) {
+    while (*str)
+    {
         // Handle newlines
-        if (*str == '\n') {
+        if (*str == '\n')
+        {
             current_x = x;
             current_y += (8 * size);
-        } else {
+        }
+        else
+        {
             // Check right screen margin for auto-wrap
-            if ((current_x + (6 * size)) >= TFT_WIDTH) {
+            if ((current_x + (6 * size)) >= TFT_WIDTH)
+            {
                 current_x = x;
                 current_y += (8 * size);
             }
@@ -437,50 +460,61 @@ void TFT_DrawString(uint8_t x, uint8_t y, const char *str, uint16_t color, uint1
     }
 }
 
-void TFT_DrawBitmap1Bit_Scaled_Clipped(int16_t x, int16_t y, const uint8_t *bitmap, 
-                                      uint8_t w, uint8_t h, uint16_t color, 
-                                      uint16_t bg_color, uint8_t scale) {
-    if (scale < 1) scale = 1;
+void TFT_DrawBitmap1Bit_Scaled_Clipped(int16_t x, int16_t y, const uint8_t *bitmap,
+                                       uint8_t w, uint8_t h, uint16_t color,
+                                       uint16_t bg_color, uint8_t scale)
+{
+    if (scale < 1)
+        scale = 1;
 
     // 1. Calculate total scaled footprint on display
     int16_t scaled_w = (int16_t)w * scale;
     int16_t scaled_h = (int16_t)h * scale;
 
     // 2. Early rejection test (Sprite is completely off-screen)
-    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + scaled_w) <= 0 || (y + scaled_h) <= 0) {
+    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + scaled_w) <= 0 || (y + scaled_h) <= 0)
+    {
         return;
     }
 
     // 3. Define visible screen coordinates
     int16_t x_start = x;
     int16_t y_start = y;
-    int16_t x_end   = x + scaled_w - 1;
-    int16_t y_end   = y + scaled_h - 1;
+    int16_t x_end = x + scaled_w - 1;
+    int16_t y_end = y + scaled_h - 1;
 
     // 4. Clip boundaries to hardware display limits
-    if (x_start < 0)           x_start = 0;
-    if (y_start < 0)           y_start = 0;
-    if (x_end >= TFT_WIDTH)    x_end   = TFT_WIDTH - 1;
-    if (y_end >= TFT_HEIGHT)   y_end   = TFT_HEIGHT - 1;
+    if (x_start < 0)
+        x_start = 0;
+    if (y_start < 0)
+        y_start = 0;
+    if (x_end >= TFT_WIDTH)
+        x_end = TFT_WIDTH - 1;
+    if (y_end >= TFT_HEIGHT)
+        y_end = TFT_HEIGHT - 1;
 
     // Pre-calculate byte splits and row stride
-    uint8_t fg_hi = (uint8_t)(color >> 8);   uint8_t fg_lo = (uint8_t)(color & 0xFF);
-    uint8_t bg_hi = (uint8_t)(bg_color >> 8); uint8_t bg_lo = (uint8_t)(bg_color & 0xFF);
+    uint8_t fg_hi = (uint8_t)(color >> 8);
+    uint8_t fg_lo = (uint8_t)(color & 0xFF);
+    uint8_t bg_hi = (uint8_t)(bg_color >> 8);
+    uint8_t bg_lo = (uint8_t)(bg_color & 0xFF);
     uint8_t bytes_per_row = (w + 7) / 8;
 
     // 5. Open display window over visible region
     TFT_SetAddrWindow((uint8_t)x_start, (uint8_t)y_start, (uint8_t)x_end, (uint8_t)y_end);
 
     // 6. Loop across visible screen pixels
-    for (int16_t sy = y_start; sy <= y_end; sy++) {
+    for (int16_t sy = y_start; sy <= y_end; sy++)
+    {
         uint8_t src_y = (sy - y) / scale;
 
-        for (int16_t sx = x_start; sx <= x_end; sx++) {
+        for (int16_t sx = x_start; sx <= x_end; sx++)
+        {
             uint8_t src_x = (sx - x) / scale;
 
             // Compute byte index and bit position inside 1-bit array
             uint16_t byte_idx = (src_y * bytes_per_row) + (src_x / 8);
-            uint8_t bit_mask  = 0x80 >> (src_x % 8);
+            uint8_t bit_mask = 0x80 >> (src_x % 8);
 
             // Read bit from PROGMEM
             uint8_t is_set = pgm_read_byte(&bitmap[byte_idx]) & bit_mask;
@@ -492,39 +526,48 @@ void TFT_DrawBitmap1Bit_Scaled_Clipped(int16_t x, int16_t y, const uint8_t *bitm
         }
     }
 }
-void TFT_DrawImageRGB565_Scaled_Clipped(int16_t x, int16_t y, const uint16_t *image, 
-                                        uint8_t w, uint8_t h, uint8_t scale) {
-    if (scale < 1) scale = 1;
+void TFT_DrawImageRGB565_Scaled_Clipped(int16_t x, int16_t y, const uint16_t *image,
+                                        uint8_t w, uint8_t h, uint8_t scale)
+{
+    if (scale < 1)
+        scale = 1;
 
     // 1. Calculate total scaled footprint on display
     int16_t scaled_w = (int16_t)w * scale;
     int16_t scaled_h = (int16_t)h * scale;
 
     // 2. Early rejection test (Image is completely off-screen)
-    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + scaled_w) <= 0 || (y + scaled_h) <= 0) {
+    if (x >= TFT_WIDTH || y >= TFT_HEIGHT || (x + scaled_w) <= 0 || (y + scaled_h) <= 0)
+    {
         return;
     }
 
     // 3. Define visible screen coordinates
     int16_t x_start = x;
     int16_t y_start = y;
-    int16_t x_end   = x + scaled_w - 1;
-    int16_t y_end   = y + scaled_h - 1;
+    int16_t x_end = x + scaled_w - 1;
+    int16_t y_end = y + scaled_h - 1;
 
     // 4. Clip boundaries to hardware display limits
-    if (x_start < 0)           x_start = 0;
-    if (y_start < 0)           y_start = 0;
-    if (x_end >= TFT_WIDTH)    x_end   = TFT_WIDTH - 1;
-    if (y_end >= TFT_HEIGHT)   y_end   = TFT_HEIGHT - 1;
+    if (x_start < 0)
+        x_start = 0;
+    if (y_start < 0)
+        y_start = 0;
+    if (x_end >= TFT_WIDTH)
+        x_end = TFT_WIDTH - 1;
+    if (y_end >= TFT_HEIGHT)
+        y_end = TFT_HEIGHT - 1;
 
     // 5. Open display window over visible region
     TFT_SetAddrWindow((uint8_t)x_start, (uint8_t)y_start, (uint8_t)x_end, (uint8_t)y_end);
 
     // 6. Loop across visible screen pixels
-    for (int16_t sy = y_start; sy <= y_end; sy++) {
+    for (int16_t sy = y_start; sy <= y_end; sy++)
+    {
         uint8_t src_y = (sy - y) / scale;
 
-        for (int16_t sx = x_start; sx <= x_end; sx++) {
+        for (int16_t sx = x_start; sx <= x_end; sx++)
+        {
             uint8_t src_x = (sx - x) / scale;
 
             // Calculate 1D element offset in 16-bit array
