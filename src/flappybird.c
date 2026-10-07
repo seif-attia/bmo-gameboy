@@ -9,13 +9,16 @@
 void play_flappy_bird()
 {
     uint8_t bird_x = TFT_WIDTH / 2 - bird_radius;
-    uint8_t bird_x_prev = bird_x;
     uint8_t bird_y = TFT_HEIGHT / 2 - bird_radius;
     uint8_t bird_y_prev = bird_y;
-    uint8_t end_game = false;
-    uint8_t jumping = false;
 
-    uint32_t gravity_delay = 0;
+    uint8_t end_game = false;
+
+    // Physics variables
+    int16_t velocity = 0;
+    uint8_t gravity_counter = 0;
+
+    uint32_t frame_timer = millis();
 
     while (!get_key(START))
     {
@@ -35,35 +38,44 @@ void play_flappy_bird()
     {
         uint32_t current_time = millis();
 
-        // Clear states
-        jumping = false;
-
         if (get_key(BACK))
         {
             end_game = true;
             break;
         }
 
-        bird_x_prev = bird_x;
-        bird_y_prev = bird_y;
-
-        if (get_key(UP))
+        // Run updates every 16ms (60fps)
+        if (current_time - frame_timer >= 16)
         {
-            jumping = true;
-            bird_y -= 25;
-            TFT_FillCircle(bird_x_prev, bird_y_prev, bird_radius, TFT_BLACK);
-            TFT_FillCircle(bird_x, bird_y, bird_radius, bird_color);
-        }
+            frame_timer = current_time;
 
-        if (current_time - gravity_delay >= 200)
-        {
-            gravity_delay = current_time;
-
-            if (!jumping)
+            if (get_key(UP))
             {
-                bird_y += 8;
-                TFT_FillCircle(bird_x_prev, bird_y_prev, bird_radius, TFT_BLACK);
+                velocity = -4;
+            }
+
+            gravity_counter++;
+            if (gravity_counter >= 3)
+            {
+                gravity_counter = 0;
+                if (velocity < 2)
+                {
+                    velocity++;
+                }
+            }
+
+            bird_y += velocity;
+
+            if (bird_y < bird_radius)
+                bird_y = bird_radius;
+            if (bird_y > TFT_HEIGHT - bird_radius)
+                bird_y = TFT_HEIGHT - bird_radius;
+
+            if (bird_y != bird_y_prev)
+            {
+                TFT_FillCircle(bird_x, bird_y_prev, bird_radius, TFT_BLACK);
                 TFT_FillCircle(bird_x, bird_y, bird_radius, bird_color);
+                bird_y_prev = bird_y;
             }
         }
     }
