@@ -302,8 +302,72 @@ void TFT_FillCircle_Fast(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 
 // --- Text & Image Rendering ---
 
+void TFT_DrawChar_Transparent(uint8_t x, uint8_t y, char c, uint16_t color, uint8_t size)
+{
+    if (c < 32 || c > 126)
+        c = '?';
+
+    uint16_t font_index = (c - 32) * 5;
+
+    for (uint8_t c_idx = 0; c_idx < 5; c_idx++)
+    {
+        // Read vertical bit slice from PROGMEM font
+        uint8_t line = pgm_read_byte(&Font5x7[font_index + c_idx]);
+
+        for (uint8_t r = 0; r < 8; r++)
+        {
+            // If bit is set, draw pixel/block
+            if ((line >> r) & 0x01)
+            {
+                if (size == 1)
+                {
+                    TFT_DrawPixel(x + c_idx, y + r, color);
+                }
+                else
+                {
+                    // Scale pixel up using FillRect
+                    TFT_FillRect(x + (c_idx * size), y + (r * size), size, size, color);
+                }
+            }
+        }
+    }
+}
+
+void TFT_DrawString_Transparent(uint8_t x, uint8_t y, const char *str, uint16_t color, uint8_t size)
+{
+    uint8_t current_x = x;
+    uint8_t current_y = y;
+
+    while (*str)
+    {
+        if (*str == '\n')
+        {
+            current_x = x;
+            current_y += (8 * size);
+        }
+        else
+        {
+            if ((current_x + (6 * size)) >= TFT_WIDTH)
+            {
+                current_x = x;
+                current_y += (8 * size);
+            }
+
+            TFT_DrawChar_Transparent(current_x, current_y, *str, color, size);
+            current_x += (6 * size);
+        }
+        str++;
+    }
+}
+
 void TFT_DrawChar_Fast(uint8_t x, uint8_t y, char c, uint16_t color, uint16_t bg_color, uint8_t size)
 {
+    if (bg_color == TFT_TRANSPARENT)
+    {
+        TFT_DrawChar_Transparent(x, y, c, color, size);
+        return;
+    }
+
     if (c < 32 || c > 126)
         c = '?';
 

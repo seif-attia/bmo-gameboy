@@ -40,6 +40,7 @@
 #define TFT_RED 0xF800
 #define TFT_GREEN 0x07E0
 #define TFT_BLUE 0x001F
+#define TFT_TRANSPARENT 0x0123
 
 // Hardware Control Primitives
 void TFT_startWrite(void);
@@ -62,6 +63,8 @@ void TFT_FillScreen(uint16_t color);
 void TFT_FillCircle_Fast(int16_t x0, int16_t y0, int16_t r, uint16_t color);
 
 // Text & Rendering Functions
+void TFT_DrawChar_Transparent(uint8_t x, uint8_t y, char c, uint16_t color, uint8_t size);
+void TFT_DrawString_Transparent(uint8_t x, uint8_t y, const char *str, uint16_t color, uint8_t size);
 void TFT_DrawChar_Fast(uint8_t x, uint8_t y, char c, uint16_t color, uint16_t bg_color, uint8_t size);
 void TFT_DrawString(uint8_t x, uint8_t y, const char *str, uint16_t color, uint16_t bg_color, uint8_t size);
 void TFT_DrawBitmap1Bit_Scaled_Clipped(int16_t x, int16_t y, const uint8_t *bitmap,
