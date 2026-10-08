@@ -10,6 +10,7 @@
 #include "bmo.h"
 #include "timer.h"
 #include "serial.h"
+#include "flappybird.h"
 
 typedef enum
 {
@@ -110,10 +111,9 @@ int main(void)
                 }
                 else if (menu_get_selected() == 2)
                 {
-                    TFT_DrawString(20, 60, "pong", TFT_RED, TFT_BLACK, 1);
-                    /* ADD game entry point later and uncomment the lines below */
-                    // TFT_FillScreen(TFT_BLACK);
-                    // menu();
+                    play_flappy_bird();
+                    TFT_FillScreen(TFT_BLACK);
+                    menu();
                 }
                 else if (menu_get_selected() == 3)
                 {
