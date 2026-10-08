@@ -4,6 +4,7 @@
 #include "timer.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <avr/pgmspace.h>
 
 #define bird_radius 4
 #define bird_color 0xf708
@@ -14,6 +15,9 @@
 #define PIPE_SPACING 100  // Spacing between consecutive pipes
 #define MAX_PIPES 3       // Sufficient for landscape screens
 #define PIPE_COLOR 0x07E0 // RGB565 Green
+
+const uint8_t bird[] PROGMEM = {
+    0x00, 0x38, 0x7C, 0xF6, 0xFF, 0xFE, 0x7C, 0x38};
 
 typedef struct
 {
@@ -26,6 +30,7 @@ typedef struct
 
 Pipe pipes[MAX_PIPES];
 uint16_t score = 0;
+uint16_t prev_score = 0;
 uint16_t high_score = 0;
 uint8_t pipe_speed = 2;
 uint8_t current_gap = INITIAL_GAP;
@@ -47,6 +52,7 @@ void spawn_pipe(uint8_t index, int16_t start_x)
 void init_pipes()
 {
     score = 0;
+    prev_score = 0;
     pipe_speed = 2;
     current_gap = INITIAL_GAP;
 
@@ -93,6 +99,7 @@ void update_and_draw_pipes(uint8_t bird_x)
         if (!pipes[i].passed && (pipes[i].x + PIPE_WIDTH < bird_x))
         {
             pipes[i].passed = 1;
+            prev_score = score;
             score++;
             if (score > high_score)
             {
@@ -145,10 +152,17 @@ void draw_score()
 {
 
     char score_str[8];
-    sprintf(score_str, "%u", score);
+    if (!(prev_score == score))
+    {
+        sprintf(score_str, "%u", prev_score);
+        TFT_DrawString(TFT_WIDTH / 2 - 8, 8, score_str, TFT_BLACK, TFT_TRANSPARENT, 2);
+    }
 
+    sprintf(score_str, "%u", score);
     // Overwrite previous region using dark background text rendering
-    TFT_DrawString(TFT_WIDTH / 2 - 8, 8, score_str, TFT_WHITE, TFT_BLACK, 2);
+    TFT_DrawString(TFT_WIDTH / 2 - 8, 8, score_str, TFT_WHITE, TFT_TRANSPARENT, 2);
+
+    prev_score = score;
 }
 
 // AABB Collision with dynamic gap check
@@ -190,7 +204,8 @@ void play_flappy_bird()
         uint32_t frame_timer = millis();
 
         // 1. START SCREEN
-        TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
+        // TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
+        TFT_DrawBitmap1Bit_Scaled_Clipped(bird_x, bird_y, bird, bird_radius * 2, bird_radius * 2, bird_color, TFT_BLACK, 1);
         TFT_DrawString(TFT_WIDTH / 4 + 7, TFT_HEIGHT - 30, "PRESS START", TFT_WHITE, TFT_BLACK, 1);
 
         while (!get_key(START))
@@ -241,7 +256,8 @@ void play_flappy_bird()
                 }
 
                 // Erase old bird position
-                TFT_FillCircle_Fast(bird_x, bird_y_prev, bird_radius, TFT_BLACK);
+                // TFT_FillCircle_Fast(bird_x, bird_y_prev, bird_radius, TFT_BLACK);
+                TFT_FillRect(bird_x, bird_y_prev, bird_radius * 2, bird_radius * 2, TFT_BLACK);
 
                 bird_y += velocity;
 
@@ -261,7 +277,8 @@ void play_flappy_bird()
                 update_and_draw_pipes(bird_x);
 
                 // Draw bird at new position
-                TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
+                // TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
+                TFT_DrawBitmap1Bit_Scaled_Clipped(bird_x, bird_y, bird, bird_radius * 2, bird_radius * 2, bird_color, TFT_BLACK, 1);
                 bird_y_prev = bird_y;
 
                 draw_score();
