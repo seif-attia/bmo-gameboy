@@ -11,6 +11,7 @@
 #include "timer.h"
 #include "serial.h"
 #include "flappybird.h"
+#include "Snake.h"
 
 typedef enum
 {
@@ -105,9 +106,9 @@ int main(void)
                 else if (menu_get_selected() == 1)
                 {
                     TFT_DrawString(20, 60, "snake", TFT_RED, TFT_BLACK, 1);
-                    /* ADD game entry point later and uncomment the lines below */
-                    // TFT_FillScreen(TFT_BLACK);
-                    // menu();
+                    play_snake();
+                    TFT_FillScreen(TFT_BLACK);
+                    menu();
                 }
                 else if (menu_get_selected() == 2)
                 {
