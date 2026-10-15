@@ -64,6 +64,22 @@ uint32_t millis()
     return ms;
 }
 
+uint32_t micros()
+{
+    uint32_t ms;
+    uint8_t t;
+    uint8_t sreg = SREG;
+    cli();
+    ms = system_millis;
+    t = TCNT0;
+    if ((TIFR0 & (1 << OCF0A)) && (t < 249))
+    {
+        ms++;
+    }
+    SREG = sreg;
+    return (ms * 1000UL) + ((uint32_t)t * 4UL);
+}
+
 int8_t timer_set_timeout(uint32_t delay_ms, void (*cb)(void))
 {
     for (uint8_t i = 0; i < MAX_TIMERS; i++)

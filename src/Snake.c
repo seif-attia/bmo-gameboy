@@ -3,6 +3,7 @@
 #include "controller.h"
 #include "timer.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <avr/pgmspace.h>
 #define GRID_SIZE 5

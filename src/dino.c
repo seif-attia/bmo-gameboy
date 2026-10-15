@@ -4,6 +4,8 @@
 #include <util/delay.h>
 #include "TFT.h"
 #include "timer.h"
+#include "IRDriver.h"
+#include "controller.h"
 
 const uint8_t PROGMEM dino_frame0[] = {
 0x00, 0x00,
@@ -93,7 +95,7 @@ void play_dino(void)
 
             //moving logic
 
-                if (get_key(UP) && !dino.is_jumping)
+                if ((get_key(UP) || get_key_signal() == UP_BUTTON) && !dino.is_jumping)
                 {
                     dino.vy = JUMP_IMPULSE;
                     dino.is_jumping = true;

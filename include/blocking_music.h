@@ -1,4 +1,5 @@
-#include <Arduino.h>
+#pragma once
+#include <stdint.h>
 
 #define tonePin_Arduino 10
 

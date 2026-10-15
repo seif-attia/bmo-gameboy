@@ -10,10 +10,12 @@
  */
 void timer_init();
 
-/**
- * @return uint32_t Returns time since system start in ms
- */
 uint32_t millis();
+
+/**
+ * @return uint32_t Returns time since system start in us
+ */
+uint32_t micros();
 
 /**
  * @brief Schedules a one-shot (non-repeating) callback without arguments.
