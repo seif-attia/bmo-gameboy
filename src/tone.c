@@ -5,73 +5,105 @@
 #define F_CPU 16000000UL
 #endif
 
-// tone.c library based on the built in tone methods normally imported from the arduino standard library
-
-// Hardware fixed output pin: PB1 (ATmega328P Pin 15 / Arduino Pin 9 - OC1A)
-#define TONE_DDR DDRB
-#define TONE_PORT PORTB
-#define TONE_PIN PB1
+// Pin mapping: PD3 (OC2B / Arduino Pin 3)
+#define TONE_DDR DDRD
+#define TONE_PORT PORTD
+#define TONE_PIN PD3
 
 void tone_init(void)
 {
-    // Set PB1 (OC1A) as an output pin
+    // Ensure PD3 is configured as an output
     TONE_DDR |= (1 << TONE_PIN);
 
-    // Reset Timer1 registers to a known stopped state
-    TCCR1A = 0;
-    TCCR1B = 0;
-    TCNT1 = 0;
+    // Reset Timer2 registers to a clean stopped state
+    TCCR2A = 0;
+    TCCR2B = 0;
+    TCNT2 = 0;
+    OCR2A = 0;
+    OCR2B = 0;
+
+    // Pull pin LOW
+    TONE_PORT &= ~(1 << TONE_PIN);
 }
 
 void tone(uint8_t pin, uint16_t frequency, unsigned long duration)
 {
-    (void)pin;      // Silence unused variable warning
-    (void)duration; // Duration managed by RTTTL state machine
+    (void)pin;
+    (void)duration;
 
-    if (frequency == 0)
+    if (frequency < 31)
     {
         noTone(0);
         return;
     }
 
-    // COM1A1:0 = 01 -> Toggle OC1A (PB1) on Compare Match
-    TCCR1A = (1 << COM1A0);
+    // Ensure pin direction is output
+    TONE_DDR |= (1 << TONE_PIN);
+
+    // Stop Timer2 clock source while reconfiguring
+    TCCR2B = 0;
 
     /*
-     * CTC Formula:
-     * Toggle Freq = F_CPU / (2 * Prescaler * (1 + OCR1A))
-     * ==> OCR1A   = (F_CPU / (2 * Prescaler * Target_Freq)) - 1
+     * Timer2 Prescalers:
+     * Mode 5 (Phase Correct PWM, TOP = OCR2A):
+     * Frequency = F_CPU / (2 * Prescaler * OCR2A)
+     * ==> OCR2A = F_CPU / (2 * Prescaler * Target_Freq)
      *
-     * Using Prescaler = 64 (Supports frequencies down to ~15 Hz @ 16 MHz F_CPU)
+     * We iterate from smallest prescaler to largest so that OCR2A
+     * is maximized (within 1..255) for highest frequency resolution.
      */
-    uint32_t ocr_value = (F_CPU / (2UL * 64UL * (uint32_t)frequency)) - 1UL;
+    static const struct {
+        uint16_t prescaler;
+        uint8_t cs_bits;
+    } prescalers[] = {
+        { 8,    (1 << CS21) },
+        { 32,   (1 << CS21) | (1 << CS20) },
+        { 64,   (1 << CS22) },
+        { 128,  (1 << CS22) | (1 << CS20) },
+        { 256,  (1 << CS22) | (1 << CS21) },
+        { 1024, (1 << CS22) | (1 << CS21) | (1 << CS20) }
+    };
 
-    // Safety clamp for 16-bit Timer1 max limit
-    if (ocr_value > 65535)
+    uint32_t ocr = 0;
+    uint8_t cs_bits = (1 << CS22) | (1 << CS21) | (1 << CS20); // Default to 1024
+
+    for (uint8_t i = 0; i < sizeof(prescalers) / sizeof(prescalers[0]); i++)
     {
-        ocr_value = 65535;
+        uint32_t val = F_CPU / (2UL * (uint32_t)prescalers[i].prescaler * (uint32_t)frequency);
+        if (val <= 255)
+        {
+            ocr = val;
+            cs_bits = prescalers[i].cs_bits;
+            break;
+        }
     }
 
-    OCR1A = (uint16_t)ocr_value;
+    if (ocr > 255)
+        ocr = 255;
+    if (ocr < 1)
+        ocr = 1;
 
-    // Clear counter register to prevent skipped match glitches
-    TCNT1 = 0;
+    OCR2A = (uint8_t)ocr;
+    // 50% duty cycle on OC2B (PD3) for maximum acoustic volume
+    OCR2B = (uint8_t)(ocr / 2);
 
-    // WGM13:0 = 0100 (CTC Mode with OCR1A top)
-    // CS12:0  = 011  (Prescaler 64) -> Starts the clock generator
-    TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
+    TCNT2 = 0;
+
+    /*
+     * Mode 5: Phase Correct PWM with TOP = OCR2A (WGM22:0 = 101)
+     * TCCR2A: WGM20 = 1, COM2B1 = 1 (Clear OC2B on match up, set on match down)
+     * TCCR2B: WGM22 = 1, CS22:0 = cs_bits
+     */
+    TCCR2A = (1 << COM2B1) | (1 << WGM20);
+    TCCR2B = (1 << WGM22) | cs_bits;
 }
 
 void noTone(uint8_t pin)
 {
     (void)pin;
 
-    // Stop Timer1 clock source
-    TCCR1B &= ~((1 << CS12) | (1 << CS11) | (1 << CS10));
+    TCCR2B = 0; // Stop Timer2 clock
+    TCCR2A = 0; // Disconnect OC2B hardware pin from Timer2
 
-    // Disconnect OC1A hardware toggling from PB1
-    TCCR1A &= ~((1 << COM1A1) | (1 << COM1A0));
-
-    // Force pin LOW to avoid floating / DC offset on piezo
-    TONE_PORT &= ~(1 << TONE_PIN);
+    TONE_PORT &= ~(1 << TONE_PIN); // Pull pin LOW to prevent DC bias
 }

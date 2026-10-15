@@ -15,6 +15,13 @@
 #include "stdio.h"
 #include "adc.h"
 #include "battery_status.h"
+#include "music.h"
+#include "BIT_MATH.h"
+#include "tone.h"
+// Music
+#define MUSIC_PIN PD3
+
+const char *come_along_with_me = "Adventur:d=4,o=6,b=130:16p.,2a.5,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8d,8e,8f#,e,d,e,b5,2d,32p,b5,8a5,d,d,f#5,2e.5,32p.,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8f#5,8g5,8f#,e,d,e,b5,2d,32p,8g5";
 
 typedef enum
 {
@@ -33,14 +40,21 @@ int main(void)
     adc_init();
     TFT_DrawBMOFace();
 
+    tone_init();
+
     GAMESTATE state = BMO_SCREEN;
 
     uint32_t last_blink = 0;
     uint8_t eyes_closed = 0;
 
+    // Music
+    // SET_BIT(DDRD, MUSIC_PIN);
+    start_song(come_along_with_me);
+
     while (true)
     {
         timer_update();
+        update_music();
 
         uint32_t current_time = millis();
 
