@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <avr/pgmspace.h>
+#include "music.h"
 #define GRID_SIZE 5
 #define BOARD_WIDTH (TFT_WIDTH / GRID_SIZE)
 #define BOARD_HEIGHT (TFT_HEIGHT / GRID_SIZE)
@@ -99,6 +100,7 @@ void play_snake(void)
     while (true)
     {
         timer_update();
+        update_music();
         uint32_t current_time = millis();
 
         if (get_key(UP) && current_dir != DIR_DOWN)
@@ -202,6 +204,7 @@ void play_snake(void)
     TFT_DrawString(TFT_WIDTH / 3 + 14, TFT_HEIGHT / 2 + 10, "BACK", TFT_WHITE, TFT_BLACK, 1);
     while (true)
     {
+        update_music();
         timer_update();
         if (get_key(BACK))
         {

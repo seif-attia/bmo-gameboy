@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <avr/pgmspace.h>
+#include "music.h"
 
 #define bird_radius 4
 #define bird_color 0xf708
@@ -198,6 +199,7 @@ void play_flappy_bird()
 
     while (play_again)
     {
+        update_music();
         TFT_FillScreen(TFT_BLACK);
 
         uint8_t bird_x = TFT_WIDTH / 4;
@@ -217,6 +219,7 @@ void play_flappy_bird()
 
         while (!get_key(START))
         {
+            update_music();
             if (get_key(BACK))
             {
                 play_again = false;
@@ -233,6 +236,7 @@ void play_flappy_bird()
         // 2. GAMEPLAY LOOP
         while (!end_game)
         {
+            update_music();
             uint32_t current_time = millis();
 
             if (get_key(BACK))
@@ -316,6 +320,7 @@ void play_flappy_bird()
 
             while (1)
             {
+                update_music();
                 if (get_key(START))
                 {
                     play_again = true;
