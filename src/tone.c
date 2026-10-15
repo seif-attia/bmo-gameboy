@@ -84,8 +84,12 @@ void tone(uint8_t pin, uint16_t frequency, unsigned long duration)
         ocr = 1;
 
     OCR2A = (uint8_t)ocr;
-    // 50% duty cycle on OC2B (PD3) for maximum acoustic volume
-    OCR2B = (uint8_t)(ocr / 2);
+    // Reduced duty cycle (~12.5%) on OC2B (PD3) to prevent power rail ripple,
+    // eliminating SPI latency and game stuttering
+    uint8_t duty = (uint8_t)(ocr / 8);
+    if (duty < 1)
+        duty = 1;
+    OCR2B = duty;
 
     TCNT2 = 0;
 
