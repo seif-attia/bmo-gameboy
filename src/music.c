@@ -16,10 +16,19 @@ static const uint16_t note_pitches[] PROGMEM = {
     // Octave 6: C6 to B6
     1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1976,
     // Octave 7: C7 to B7
-    2093, 2217, 2349, 2489, 2637, 2794, 2960, 3136, 3322, 3520, 3729, 3951
-};
+    2093, 2217, 2349, 2489, 2637, 2794, 2960, 3136, 3322, 3520, 3729, 3951};
 
 #define is_digit_char(n) ((n) >= '0' && (n) <= '9')
+
+// Helper function to safely read characters from RAM or PROGMEM
+static inline char read_char(const char *ptr)
+{
+#if defined(__AVR__)
+    return pgm_read_byte(ptr);
+#else
+    return *ptr;
+#endif
+}
 
 // --- State Machine Variables ---
 static const char *current_p = NULL;
@@ -35,17 +44,15 @@ static uint32_t current_phase_duration = 0;
 static uint32_t next_pause_duration = 0;
 
 static const char *original_song_ptr = NULL;
+static bool loop_song = true;
 
-void start_song(const char *p)
+static void play_internal(const char *p, bool loop)
 {
     if (!p)
         return;
 
-    const char *first_colon = strchr(p, ':');
-    if (!first_colon || !strchr(first_colon + 1, ':'))
-        return;
-
     original_song_ptr = p;
+    loop_song = loop;
     noTone(tonePin_Arduino);
 
     is_playing = true;
@@ -61,52 +68,53 @@ void start_song(const char *p)
     current_p = p;
 
     // 1. Skip Name Section
-    while (*current_p != ':' && *current_p != '\0')
+    while (read_char(current_p) != ':' && read_char(current_p) != '\0')
         current_p++;
-    if (*current_p == ':')
+    if (read_char(current_p) == ':')
         current_p++;
 
     // 2. Parse Defaults Section (d=X, o=Y, b=Z)
-    while (*current_p != ':' && *current_p != '\0')
+    while (read_char(current_p) != ':' && read_char(current_p) != '\0')
     {
-        while (*current_p == ' ')
+        while (read_char(current_p) == ' ')
             current_p++;
 
-        if (*current_p == 'd')
+        char c = read_char(current_p);
+        if (c == 'd')
         {
             current_p++;
-            if (*current_p == '=')
+            if (read_char(current_p) == '=')
                 current_p++;
             int num = 0;
-            while (is_digit_char(*current_p))
+            while (is_digit_char(read_char(current_p)))
             {
-                num = (num * 10) + (*current_p++ - '0');
+                num = (num * 10) + (read_char(current_p++) - '0');
             }
             if (num > 0)
                 default_dur = num;
         }
-        else if (*current_p == 'o')
+        else if (c == 'o')
         {
             current_p++;
-            if (*current_p == '=')
+            if (read_char(current_p) == '=')
                 current_p++;
             int num = 0;
-            while (is_digit_char(*current_p))
+            while (is_digit_char(read_char(current_p)))
             {
-                num = (num * 10) + (*current_p++ - '0');
+                num = (num * 10) + (read_char(current_p++) - '0');
             }
             if (num > 0)
                 default_oct = num;
         }
-        else if (*current_p == 'b')
+        else if (c == 'b')
         {
             current_p++;
-            if (*current_p == '=')
+            if (read_char(current_p) == '=')
                 current_p++;
             int num = 0;
-            while (is_digit_char(*current_p))
+            while (is_digit_char(read_char(current_p)))
             {
-                num = (num * 10) + (*current_p++ - '0');
+                num = (num * 10) + (read_char(current_p++) - '0');
             }
             if (num > 0)
                 bpm = num;
@@ -116,20 +124,49 @@ void start_song(const char *p)
             current_p++;
         }
 
-        while (*current_p == ' ')
+        while (read_char(current_p) == ' ')
             current_p++;
 
-        if (*current_p == ',')
+        if (read_char(current_p) == ',')
             current_p++;
     }
 
-    if (*current_p == ':')
+    if (read_char(current_p) == ':')
         current_p++;
 
     if (bpm == 0)
         bpm = 63;
 
     beatEvery = 60000UL / (uint32_t)bpm;
+}
+
+void start_song(const char *p)
+{
+    play_internal(p, true);
+}
+
+void play_once(const char *p)
+{
+    play_internal(p, false);
+}
+
+void play_sfx(const char *p)
+{
+    play_internal(p, false);
+}
+
+void stop_song(void)
+{
+    is_playing = false;
+    is_note_sounding = false;
+    current_p = NULL;
+    original_song_ptr = NULL;
+    noTone(tonePin_Arduino);
+}
+
+bool is_music_playing(void)
+{
+    return is_playing;
 }
 
 void update_music(void)
@@ -158,35 +195,35 @@ void update_music(void)
         // ---------------------------------------------------------
 
         // Skip leading spaces or commas
-        while (*current_p == ' ' || *current_p == ',')
+        while (read_char(current_p) == ' ' || read_char(current_p) == ',')
             current_p++;
 
         // End of song reached
-        if (*current_p == '\0')
+        if (read_char(current_p) == '\0')
         {
-            if (original_song_ptr)
+            if (loop_song && original_song_ptr)
             {
-                start_song(original_song_ptr);
+                play_internal(original_song_ptr, true);
             }
             else
             {
-                is_playing = false;
+                stop_song();
             }
             return;
         }
 
         // Parse Duration
         int num = 0;
-        while (is_digit_char(*current_p))
+        while (is_digit_char(read_char(current_p)))
         {
-            num = (num * 10) + (*current_p++ - '0');
+            num = (num * 10) + (read_char(current_p++) - '0');
         }
         int noteDuration = (num == 0) ? default_dur : num;
         if (noteDuration == 0)
             noteDuration = 4;
 
         // Parse Note Letter
-        char noteChar = *current_p;
+        char noteChar = read_char(current_p);
         if (noteChar >= 'A' && noteChar <= 'Z')
             noteChar += 32; // Force lowercase
         if (noteChar == 'h')
@@ -196,7 +233,7 @@ void update_music(void)
 
         // Parse Sharps
         bool sharp = false;
-        if (*current_p == '#')
+        if (read_char(current_p) == '#')
         {
             sharp = true;
             current_p++;
@@ -204,7 +241,7 @@ void update_music(void)
 
         // Parse Dots
         int dots = 0;
-        while (*current_p == '.')
+        while (read_char(current_p) == '.')
         {
             dots++;
             current_p++;
@@ -212,20 +249,20 @@ void update_music(void)
 
         // Parse Octave
         int octave = default_oct;
-        if (is_digit_char(*current_p))
+        if (is_digit_char(read_char(current_p)))
         {
-            octave = *current_p++ - '0';
+            octave = read_char(current_p++) - '0';
         }
 
         // Dots after octave
-        while (*current_p == '.')
+        while (read_char(current_p) == '.')
         {
             dots++;
             current_p++;
         }
 
         // Skip trailing spaces or commas
-        while (*current_p == ' ' || *current_p == ',')
+        while (read_char(current_p) == ' ' || read_char(current_p) == ',')
             current_p++;
 
         // Calculate note and gap durations

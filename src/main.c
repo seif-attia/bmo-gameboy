@@ -20,10 +20,11 @@
 #include "music.h"
 #include "BIT_MATH.h"
 #include "tone.h"
+#include <avr/pgmspace.h>
 // Music
 #define MUSIC_PIN PD3
 
-const char *come_along_with_me = "Adventur:d=4,o=6,b=130:16p.,2a.5,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8d,8e,8f#,e,d,e,b5,2d,32p,b5,8a5,d,d,f#5,2e.5,32p.,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8f#5,8g5,8f#,e,d,e,b5,2d,32p,8g5";
+const char menuMusic[] PROGMEM = "Adventur:d=4,o=6,b=130:16p.,2a.5,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8d,8e,8f#,e,d,e,b5,2d,32p,b5,8a5,d,d,f#5,2e.5,32p.,8f#5,8g5,2a5,32p,d.,32p,2b.5,32p.,8d,8e,8f#,e,d,e,e,2d,32p,8f#5,8g5,8f#,e,d,e,b5,2d,32p,8g5";
 
 typedef enum
 {
@@ -50,11 +51,12 @@ int main(void)
     uint8_t eyes_closed = 0;
 
     // Music
-    // SET_BIT(DDRD, MUSIC_PIN);
-    start_song(come_along_with_me);
+    start_song(menuMusic);
 
     while (true)
     {
+        if (is_music_playing() == false)
+            start_song(menuMusic);
         timer_update();
         update_music();
 
@@ -122,30 +124,35 @@ int main(void)
 
                 if (menu_get_selected() == 0)
                 {
+                    stop_song();
                     play_tic_tac_toe();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();
                 }
                 else if (menu_get_selected() == 1)
                 {
+                    stop_song();
                     play_snake();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();
                 }
                 else if (menu_get_selected() == 2)
                 {
+                    stop_song();
                     play_flappy_bird();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();
                 }
                 else if (menu_get_selected() == 3)
                 {
+                    stop_song();
                     play_dino();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();
                 }
                 else if (menu_get_selected() == 4)
                 {
+                    stop_song();
                     play_pong();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();

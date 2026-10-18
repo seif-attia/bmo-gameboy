@@ -7,48 +7,48 @@
 #include <stdbool.h>
 
 // Ice Kingdom Theme Colors (RGB565)
-#define COLOR_SNOW_BG       0xCE7F   // Crisp arctic pale blue-white snow (RGB 200, 206, 255)
-#define COLOR_SNOW_DRIFT    0xE73F   // Glowing pure snow highlights / mounds (RGB 228, 230, 255)
-#define COLOR_SNOW_SHADOW   0x9D9E   // Chilly periwinkle blue shadow (RGB 156, 178, 240)
-#define COLOR_ICE_DEEP      0x1339   // Dark glinting glacial deep blue
-#define COLOR_ICE_CORE      0x4E7F   // Crystalline cyan ice core (RGB 74, 203, 255)
-#define COLOR_ICE_HIGHLIGHT 0xDFFF   // Gleaming translucent frost / white reflection (RGB 220, 254, 255)
-#define COLOR_ICE_SHADOW    0x2314   // Ice shard drop shadow
+#define COLOR_SNOW_BG 0xCE7F       // Crisp arctic pale blue-white snow (RGB 200, 206, 255)
+#define COLOR_SNOW_DRIFT 0xE73F    // Glowing pure snow highlights / mounds (RGB 228, 230, 255)
+#define COLOR_SNOW_SHADOW 0x9D9E   // Chilly periwinkle blue shadow (RGB 156, 178, 240)
+#define COLOR_ICE_DEEP 0x1339      // Dark glinting glacial deep blue
+#define COLOR_ICE_CORE 0x4E7F      // Crystalline cyan ice core (RGB 74, 203, 255)
+#define COLOR_ICE_HIGHLIGHT 0xDFFF // Gleaming translucent frost / white reflection (RGB 220, 254, 255)
+#define COLOR_ICE_SHADOW 0x2314    // Ice shard drop shadow
 
 // Ice King Palette
-#define COLOR_IK_CROWN      0xFDE0   // Gold crown
-#define COLOR_IK_RUBY       0xF800   // Red crown rubies
-#define COLOR_IK_SKIN       0x5EBF   // Chilly cyan blue face skin
-#define COLOR_IK_BEARD      0xFFFF   // Flowing white beard & eyebrows
-#define COLOR_IK_BEARD_SHD  0xBDD7   // Beard folds / shadow
-#define COLOR_IK_NOSE       0x341F   // Sharp pointed blue nose
-#define COLOR_IK_EYE        0x0000   // Eye dots
-#define COLOR_IK_ROBE       0x1A19   // Dark royal blue robe at base
+#define COLOR_IK_CROWN 0xFDE0     // Gold crown
+#define COLOR_IK_RUBY 0xF800      // Red crown rubies
+#define COLOR_IK_SKIN 0x5EBF      // Chilly cyan blue face skin
+#define COLOR_IK_BEARD 0xFFFF     // Flowing white beard & eyebrows
+#define COLOR_IK_BEARD_SHD 0xBDD7 // Beard folds / shadow
+#define COLOR_IK_NOSE 0x341F      // Sharp pointed blue nose
+#define COLOR_IK_EYE 0x0000       // Eye dots
+#define COLOR_IK_ROBE 0x1A19      // Dark royal blue robe at base
 
 // Gunter Palette
-#define COLOR_GUNTER_BODY   0x0841   // Inky penguin black feathers
-#define COLOR_GUNTER_BELLY  0xFFFF   // Crisp white penguin belly
-#define COLOR_GUNTER_EYE_W  0xFFFF   // Big white round eye
-#define COLOR_GUNTER_EYE_P  0x0000   // Big black pupil
-#define COLOR_GUNTER_BEAK   0xFD00   // Orange-yellow beak
-#define COLOR_GUNTER_CHEEK  0xFCC0   // Cute little cheek blush / highlight
+#define COLOR_GUNTER_BODY 0x0841  // Inky penguin black feathers
+#define COLOR_GUNTER_BELLY 0xFFFF // Crisp white penguin belly
+#define COLOR_GUNTER_EYE_W 0xFFFF // Big white round eye
+#define COLOR_GUNTER_EYE_P 0x0000 // Big black pupil
+#define COLOR_GUNTER_BEAK 0xFD00  // Orange-yellow beak
+#define COLOR_GUNTER_CHEEK 0xFCC0 // Cute little cheek blush / highlight
 
 // Board Layout & Grid Dimensions
-#define BOARD_OFFSET_X      5
-#define BOARD_OFFSET_Y      10
-#define CELL_SIZE           36
-#define GRID_LINE_WIDTH     4        // Ice shard width
+#define BOARD_OFFSET_X 5
+#define BOARD_OFFSET_Y 10
+#define CELL_SIZE 36
+#define GRID_LINE_WIDTH 4 // Ice shard width
 
-#define BOARD_TOTAL_W       (3 * CELL_SIZE + 2 * GRID_LINE_WIDTH) // 116 px
-#define BOARD_TOTAL_H       (3 * CELL_SIZE + 2 * GRID_LINE_WIDTH) // 116 px
+#define BOARD_TOTAL_W (3 * CELL_SIZE + 2 * GRID_LINE_WIDTH) // 116 px
+#define BOARD_TOTAL_H (3 * CELL_SIZE + 2 * GRID_LINE_WIDTH) // 116 px
 
 static uint16_t score_ik = 0;     // Ice King (Player 1)
 static uint16_t score_gunter = 0; // Gunter (Player 2)
 
-static uint8_t board[3][3];       // 0: empty, 1: Ice King, 2: Gunter
+static uint8_t board[3][3]; // 0: empty, 1: Ice King, 2: Gunter
 static uint8_t cursor_r = 1;
 static uint8_t cursor_c = 1;
-static uint8_t current_turn = 1;  // 1: Ice King, 2: Gunter (Ice King always starts)
+static uint8_t current_turn = 1; // 1: Ice King, 2: Gunter (Ice King always starts)
 
 // Draw atmospheric snowy background with drifts, flakes, and icy sparkles
 static void draw_snowy_background(void)
@@ -76,11 +76,7 @@ static void draw_snowy_background(void)
 
     // Handcrafted sparkling snowflakes floating in the air
     const uint8_t flakes[][2] = {
-        {12, 6}, {45, 4}, {82, 8}, {118, 5}, {145, 12},
-        {18, 40}, {100, 35}, {130, 26}, {150, 48},
-        {8, 80}, {75, 78}, {126, 68}, {140, 90},
-        {22, 115}, {60, 122}, {95, 118}, {135, 120}, {152, 114}
-    };
+        {12, 6}, {45, 4}, {82, 8}, {118, 5}, {145, 12}, {18, 40}, {100, 35}, {130, 26}, {150, 48}, {8, 80}, {75, 78}, {126, 68}, {140, 90}, {22, 115}, {60, 122}, {95, 118}, {135, 120}, {152, 114}};
     for (uint8_t i = 0; i < sizeof(flakes) / sizeof(flakes[0]); i++)
     {
         uint8_t fx = flakes[i][0];
@@ -112,7 +108,7 @@ static void draw_ice_shards_grid(void)
         TFT_DrawVLine_Fast(sx + GRID_LINE_WIDTH, BOARD_OFFSET_Y + 1, BOARD_TOTAL_H, COLOR_ICE_SHADOW);
 
         // Core ice layers: highlight edge, bright core, deep body, faceted edge
-        TFT_DrawVLine_Fast(sx,     BOARD_OFFSET_Y, BOARD_TOTAL_H, COLOR_ICE_HIGHLIGHT);
+        TFT_DrawVLine_Fast(sx, BOARD_OFFSET_Y, BOARD_TOTAL_H, COLOR_ICE_HIGHLIGHT);
         TFT_DrawVLine_Fast(sx + 1, BOARD_OFFSET_Y, BOARD_TOTAL_H, COLOR_ICE_CORE);
         TFT_DrawVLine_Fast(sx + 2, BOARD_OFFSET_Y, BOARD_TOTAL_H, COLOR_ICE_DEEP);
         TFT_DrawVLine_Fast(sx + 3, BOARD_OFFSET_Y, BOARD_TOTAL_H, COLOR_ICE_CORE);
@@ -146,7 +142,7 @@ static void draw_ice_shards_grid(void)
         TFT_DrawHLine_Fast(BOARD_OFFSET_X + 1, sy + GRID_LINE_WIDTH, BOARD_TOTAL_W, COLOR_ICE_SHADOW);
 
         // Core ice layers
-        TFT_DrawHLine_Fast(BOARD_OFFSET_X, sy,     BOARD_TOTAL_W, COLOR_ICE_HIGHLIGHT);
+        TFT_DrawHLine_Fast(BOARD_OFFSET_X, sy, BOARD_TOTAL_W, COLOR_ICE_HIGHLIGHT);
         TFT_DrawHLine_Fast(BOARD_OFFSET_X, sy + 1, BOARD_TOTAL_W, COLOR_ICE_CORE);
         TFT_DrawHLine_Fast(BOARD_OFFSET_X, sy + 2, BOARD_TOTAL_W, COLOR_ICE_DEEP);
         TFT_DrawHLine_Fast(BOARD_OFFSET_X, sy + 3, BOARD_TOTAL_W, COLOR_ICE_CORE);
@@ -362,7 +358,7 @@ static void draw_gunter_head(uint8_t cx, uint8_t cy)
     TFT_DrawPixel(cx + 10, cy + 13, COLOR_GUNTER_BEAK); // Beak tip
     // Beak shine & nostril crease
     TFT_DrawHLine_Fast(cx + 8, cy + 9, 5, 0xFFE0); // Bright yellow highlight
-    TFT_DrawPixel(cx + 10, cy + 10, 0xC300); // Beak center mouth slit
+    TFT_DrawPixel(cx + 10, cy + 10, 0xC300);       // Beak center mouth slit
 
     // y+14 .. y+23: Body, White Belly & Wings / Flippers
     // Black body sides & wings
@@ -649,4 +645,5 @@ void play_tic_tac_toe(void)
             }
         }
     }
+    stop_song();
 }

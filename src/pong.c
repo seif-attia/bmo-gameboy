@@ -9,47 +9,47 @@
 
 // Theme Colors (RGB565) - Adventure Time Theme
 // Shores & River
-#define COLOR_GRASS         0x5E68   // Lush vibrant grass green (RGB 92, 205, 66)
-#define COLOR_GRASS_DARK    0x3CE3   // Deeper shoreline grass accent
-#define COLOR_GRASS_LIGHT   0x8729   // Bright grass highlight
-#define COLOR_RIVER         0x4E7F   // Bright cartoonish river blue (RGB 74, 203, 255)
-#define COLOR_RIVER_DEEP    0x2CF8   // Mid-river blue depth / wave highlights
-#define COLOR_RIVER_SPARKLE 0xBFFF   // Light shimmering water crest
-#define COLOR_RIVER_BANK    0x84B2   // Soft sandy shore edge / bank
-#define COLOR_FLOWER_RED    0xF986   // Red wildflower
-#define COLOR_FLOWER_YEL    0xFFE0   // Yellow wildflower
-#define COLOR_STONE         0x94B2   // Little pebble gray
+#define COLOR_GRASS 0x5E68         // Lush vibrant grass green (RGB 92, 205, 66)
+#define COLOR_GRASS_DARK 0x3CE3    // Deeper shoreline grass accent
+#define COLOR_GRASS_LIGHT 0x8729   // Bright grass highlight
+#define COLOR_RIVER 0x4E7F         // Bright cartoonish river blue (RGB 74, 203, 255)
+#define COLOR_RIVER_DEEP 0x2CF8    // Mid-river blue depth / wave highlights
+#define COLOR_RIVER_SPARKLE 0xBFFF // Light shimmering water crest
+#define COLOR_RIVER_BANK 0x84B2    // Soft sandy shore edge / bank
+#define COLOR_FLOWER_RED 0xF986    // Red wildflower
+#define COLOR_FLOWER_YEL 0xFFE0    // Yellow wildflower
+#define COLOR_STONE 0x94B2         // Little pebble gray
 
 // Tennis Ball
-#define COLOR_TENNIS_BALL   0xD228   // Vibrant electric tennis-ball neon yellow-green
-#define COLOR_TENNIS_SEAM   0xFFFF   // White seam detail
+#define COLOR_TENNIS_BALL 0xD228 // Vibrant electric tennis-ball neon yellow-green
+#define COLOR_TENNIS_SEAM 0xFFFF // White seam detail
 
 // Victory Phrases Colors
-#define COLOR_MATHEMATICAL  0x3FE0   // Vibrant Adventure Time bright green (RGB 62, 252, 0)
-#define COLOR_BACON         0xD228   // Crispy glazed bacon color (rich reddish-brown / cooked strip)
-#define COLOR_BACON_FAT     0xF4E8   // Bacon fat marbling highlight
+#define COLOR_MATHEMATICAL 0x3FE0 // Vibrant Adventure Time bright green (RGB 62, 252, 0)
+#define COLOR_BACON 0xD228        // Crispy glazed bacon color (rich reddish-brown / cooked strip)
+#define COLOR_BACON_FAT 0xF4E8    // Bacon fat marbling highlight
 
 // Finn Palette (P1)
-#define COLOR_FINN_HAT      0xFFFF   // Finn's iconic white bear hat
-#define COLOR_FINN_HAT_SHD  0xCE79   // Hat shadow / ear definition
-#define COLOR_FINN_SKIN     0xFDE8   // Finn's face skin tone
-#define COLOR_FINN_SHIRT    0x5EBF   // Finn's light blue shirt
-#define COLOR_FINN_BACKPACK 0x24C6   // Finn's two-tone green backpack
-#define COLOR_FINN_SHORTS   0x2217   // Finn's dark denim shorts
-#define COLOR_FINN_BOOTS    0x0000   // Finn's black shoes
+#define COLOR_FINN_HAT 0xFFFF      // Finn's iconic white bear hat
+#define COLOR_FINN_HAT_SHD 0xCE79  // Hat shadow / ear definition
+#define COLOR_FINN_SKIN 0xFDE8     // Finn's face skin tone
+#define COLOR_FINN_SHIRT 0x5EBF    // Finn's light blue shirt
+#define COLOR_FINN_BACKPACK 0x24C6 // Finn's two-tone green backpack
+#define COLOR_FINN_SHORTS 0x2217   // Finn's dark denim shorts
+#define COLOR_FINN_BOOTS 0x0000    // Finn's black shoes
 
 // Jake Palette (P2)
-#define COLOR_JAKE_BODY     0xFDE0   // Jake's golden mustard yellow
-#define COLOR_JAKE_EAR      0xD400   // Jake's ear / dark contour
-#define COLOR_JAKE_SHADOW   0xEB00   // Warm golden shade
-#define COLOR_JAKE_EYE_W    0xFFFF   // Jake's large cartoon white eyes
-#define COLOR_JAKE_EYE_P    0x0000   // Jake's big black pupil
-#define COLOR_JAKE_NOSE     0x0000   // Jake's black nose tip
+#define COLOR_JAKE_BODY 0xFDE0   // Jake's golden mustard yellow
+#define COLOR_JAKE_EAR 0xD400    // Jake's ear / dark contour
+#define COLOR_JAKE_SHADOW 0xEB00 // Warm golden shade
+#define COLOR_JAKE_EYE_W 0xFFFF  // Jake's large cartoon white eyes
+#define COLOR_JAKE_EYE_P 0x0000  // Jake's big black pupil
+#define COLOR_JAKE_NOSE 0x0000   // Jake's black nose tip
 
 // Arena Layout
-#define RIVER_LEFT          48
-#define RIVER_WIDTH         64
-#define RIVER_RIGHT         (RIVER_LEFT + RIVER_WIDTH) // 112
+#define RIVER_LEFT 48
+#define RIVER_WIDTH 64
+#define RIVER_RIGHT (RIVER_LEFT + RIVER_WIDTH) // 112
 
 #define PADDLE_W 6
 #define PADDLE_H 25
@@ -700,4 +700,5 @@ void play_pong(void)
             }
         }
     }
+    stop_song();
 }

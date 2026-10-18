@@ -208,4 +208,5 @@ void play_dino(void)
 
         _delay_ms(30);
     }
+    stop_song();
 }

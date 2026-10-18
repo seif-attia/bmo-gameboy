@@ -334,4 +334,5 @@ void play_flappy_bird()
             }
         }
     }
+    stop_song();
 }

@@ -211,4 +211,5 @@ void play_snake(void)
             break;
         }
     }
+    stop_song();
 }
