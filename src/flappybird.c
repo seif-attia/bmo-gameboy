@@ -18,12 +18,16 @@
 #define MAX_PIPES 5       // Sufficient for landscape screens
 #define PIPE_COLOR 0x07E0 // RGB565 Green
 
+// Fixed-point scaling factor: 1 pixel = 16 sub-pixel units
+#define FP_SHIFT 4
+#define FP_SCALE (1 << FP_SHIFT)
+
 const uint8_t bird[] PROGMEM = {
     0x00, 0x38, 0x7C, 0xF6, 0xFF, 0xFE, 0x7C, 0x38};
 
 typedef struct
 {
-    int16_t x;
+    int32_t x_fp;   // Sub-pixel X coordinate (x * 16)
     uint8_t gap_y;  // Top coordinate of the gap
     uint8_t gap_h;  // Height of the gap
     uint8_t active; // Whether the pipe is currently on screen
@@ -34,13 +38,15 @@ Pipe pipes[MAX_PIPES];
 uint16_t score = 0;
 uint16_t prev_score = 0;
 uint16_t high_score = 0;
-uint8_t pipe_speed = 2;
+
+// Sub-pixel pipe speed: 16 = 1.0 px/frame, 24 = 1.5 px/frame, 32 = 2.0 px/frame
+uint16_t pipe_speed = 16;
 uint8_t current_gap = INITIAL_GAP;
 uint8_t pipe_spacing = INITIAL_SPACING;
 
 void spawn_pipe(uint8_t index, int16_t start_x)
 {
-    pipes[index].x = start_x;
+    pipes[index].x_fp = (int32_t)start_x * FP_SCALE; // Convert pixel to fixed-point
     pipes[index].gap_h = current_gap;
 
     // Prevent gap from generating too close to screen top/bottom borders
@@ -56,7 +62,7 @@ void init_pipes()
 {
     score = 0;
     prev_score = 0;
-    pipe_speed = 1;
+    pipe_speed = 16; // Reset base speed to 1.0 px/frame (16 / 16)
     current_gap = INITIAL_GAP;
     pipe_spacing = INITIAL_SPACING; // Reset spacing on game restart
 
@@ -72,10 +78,13 @@ void init_pipes()
 
 void update_difficulty()
 {
-    // Smooth speed progression: starts at 1, increases every 20 points up to 3
-    pipe_speed = 1 + (score / 25);
-    if (pipe_speed > 3)
-        pipe_speed = 3;
+    // Smooth speed progression:
+    // Starts at 16 (1.0 px/frame).
+    // Adds +1 sub-pixel unit (0.0625 px/frame) per point scored.
+    // Capped at 36 (2.25 px/frame)
+    pipe_speed = 16 + (score / 4);
+    if (pipe_speed > 36)
+        pipe_speed = 36;
 
     // Shrink gap slightly as score increases
     int16_t temp_gap = INITIAL_GAP - (score / 3);
@@ -101,12 +110,17 @@ void update_and_draw_pipes(uint8_t bird_x)
         if (!pipes[i].active)
             continue;
 
-        int16_t old_x = pipes[i].x;
-        pipes[i].x -= pipe_speed;
-        int16_t new_x = pipes[i].x;
+        // Convert current sub-pixel X position to integer pixel display position
+        int16_t old_x = (int16_t)(pipes[i].x_fp >> FP_SHIFT);
+
+        // Apply fractional speed movement
+        pipes[i].x_fp -= pipe_speed;
+
+        // Get new integer pixel display position
+        int16_t new_x = (int16_t)(pipes[i].x_fp >> FP_SHIFT);
 
         // --- SCORE CHECK ---
-        if (!pipes[i].passed && (pipes[i].x + PIPE_WIDTH < bird_x))
+        if (!pipes[i].passed && (new_x + PIPE_WIDTH < bird_x))
         {
             pipes[i].passed = 1;
             prev_score = score;
@@ -119,6 +133,7 @@ void update_and_draw_pipes(uint8_t bird_x)
         }
 
         // --- DRAW PIPE MOVEMENTS ---
+        // Loops through pixel columns that need redrawing (only executes when whole pixels shift)
         for (int16_t x = new_x; x < old_x; x++)
         {
             // Render new trailing edge column
@@ -138,7 +153,7 @@ void update_and_draw_pipes(uint8_t bird_x)
         }
 
         // --- MULTI-PIPE SPAWN LOGIC ---
-        // If this pipe moved past the dynamic spacing threshold, spawn next available pipe
+        // Spawn next pipe when threshold crossed using integer coordinates
         if (old_x >= (TFT_WIDTH - pipe_spacing) && new_x < (TFT_WIDTH - pipe_spacing))
         {
             for (uint8_t j = 0; j < MAX_PIPES; j++)
@@ -152,15 +167,15 @@ void update_and_draw_pipes(uint8_t bird_x)
         }
 
         // Recycle pipe when completely off-screen
-        if (pipes[i].x + PIPE_WIDTH < 0)
+        if (new_x + PIPE_WIDTH < 0)
         {
             pipes[i].active = 0;
         }
     }
 }
+
 void draw_score()
 {
-
     char score_str[8];
     if (!(prev_score == score))
     {
@@ -183,7 +198,9 @@ uint8_t check_pipe_collision(uint8_t bird_x, uint8_t bird_y)
         if (!pipes[i].active)
             continue;
 
-        if (bird_x + bird_radius >= pipes[i].x && bird_x - bird_radius <= pipes[i].x + PIPE_WIDTH)
+        int16_t pipe_x = (int16_t)(pipes[i].x_fp >> FP_SHIFT);
+
+        if (bird_x + bird_radius >= pipe_x && bird_x - bird_radius <= pipe_x + PIPE_WIDTH)
         {
             if ((bird_y - bird_radius < pipes[i].gap_y) ||
                 (bird_y + bird_radius > pipes[i].gap_y + pipes[i].gap_h))
@@ -215,7 +232,6 @@ void play_flappy_bird()
         uint32_t frame_timer = millis();
 
         // 1. START SCREEN
-        // TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
         TFT_DrawBitmap1Bit_Scaled_Clipped(bird_x, bird_y, bird, bird_radius * 2, bird_radius * 2, bird_color, TFT_BLACK, 1);
         TFT_DrawString(TFT_WIDTH / 4 + 7, TFT_HEIGHT - 30, "PRESS START", TFT_WHITE, TFT_BLACK, 1);
 
@@ -269,7 +285,6 @@ void play_flappy_bird()
                 }
 
                 // Erase old bird position
-                // TFT_FillCircle_Fast(bird_x, bird_y_prev, bird_radius, TFT_BLACK);
                 TFT_FillRect(bird_x, bird_y_prev, bird_radius * 2, bird_radius * 2, TFT_BLACK);
 
                 bird_y += velocity;
@@ -291,7 +306,6 @@ void play_flappy_bird()
                 update_and_draw_pipes(bird_x);
 
                 // Draw bird at new position
-                // TFT_FillCircle_Fast(bird_x, bird_y, bird_radius, bird_color);
                 TFT_DrawBitmap1Bit_Scaled_Clipped(bird_x, bird_y, bird, bird_radius * 2, bird_radius * 2, bird_color, TFT_BLACK, 1);
                 bird_y_prev = bird_y;
 
