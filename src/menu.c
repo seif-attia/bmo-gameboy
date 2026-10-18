@@ -34,7 +34,7 @@ void menu(void)
     else
         TFT_DrawString(5, 95, "  ", MENU_TEXT, MENU_BACKGROUND, 1);
 
-    TFT_DrawString(20, 95, "DINO", MENU_TEXT, MENU_BACKGROUND, 1);
+    TFT_DrawString(20, 95, "Gaurdians of Sunshine", MENU_TEXT, MENU_BACKGROUND, 1);
 
     if (selected_game == 4)
         TFT_DrawString(5, 115, ">>", MENU_TEXT, MENU_BACKGROUND, 1);
