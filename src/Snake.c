@@ -86,6 +86,8 @@ static void draw_block(int8_t x, int8_t y, uint16_t color)
 
 void play_snake(void)
 {
+    uint8_t again = true;
+    while(again){
     TFT_FillScreen(TFT_BLACK);
     snake_init();
 
@@ -93,11 +95,14 @@ void play_snake(void)
     // const uint32_t move_interval = 120;
     char s_b[6];
     uint16_t last_s = 0;
+
     TFT_DrawString(5, 2, "Score:", TFT_RED, TFT_BLACK, 1);
-    TFT_DrawString(45, 2, "0:", TFT_RED, TFT_BLACK, 1);
+    TFT_DrawString(45, 2, "0", TFT_RED, TFT_BLACK, 1);
 
     TFT_DrawHLine_Fast(0, 12, 160, TFT_RED);
-    while (true)
+
+    uint8_t end = false;
+        while (!end)
     {
         timer_update();
         update_music();
@@ -122,7 +127,9 @@ void play_snake(void)
 
         if (get_key(BACK))
         {
-            return;
+            end = true;
+            again = false;
+            break;
         }
 
         if (current_time - last_move_time >= move_interval)
@@ -149,6 +156,7 @@ void play_snake(void)
             if (snake[0].x < 0 || snake[0].x >= BOARD_WIDTH ||
                 snake[0].y < 3 || snake[0].y >= BOARD_HEIGHT)
             {
+                end = true;
                 break;
             }
 
@@ -161,8 +169,8 @@ void play_snake(void)
                     break;
                 }
             }
-            if (self_collision)
-                break;
+            if (self_collision){end = true;break;}
+                
 
             if (snake[0].x == food.x && snake[0].y == food.y)
             {
@@ -193,7 +201,7 @@ void play_snake(void)
             }
         }
     }
-
+    if(again){
     TFT_FillScreen(TFT_BLACK);
     char text[15];
     strcpy_P(text, PSTR("GAME OVER"));
@@ -202,18 +210,25 @@ void play_snake(void)
     TFT_DrawString(50, 54, s_b, TFT_WHITE, TFT_BLACK, 1);
     TFT_DrawString(60, 69, "START", TFT_GREEN, TFT_BLACK, 1);
     TFT_DrawString(60, 84, "BACK", TFT_WHITE, TFT_BLACK, 1);
+
+
     while (true)
     {
         update_music();
         timer_update();
         if (get_key(BACK))
         {
+            again = false;
             break;
         }
         if (get_key(START))
         {
-            play_snake();
+            again = true;
+            break;
+            
         }
     }
+}
+}
     stop_song();
 }
