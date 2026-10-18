@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <avr/pgmspace.h>
 #include "music.h"
+#include "sfx.h"
 
 #define bird_radius 4
 #define bird_color 0xf708
@@ -110,6 +111,7 @@ void update_and_draw_pipes(uint8_t bird_x)
             pipes[i].passed = 1;
             prev_score = score;
             score++;
+            play_sfx(sfx_flappy_score);
             if (score > high_score)
             {
                 high_score = score;
@@ -281,6 +283,7 @@ void play_flappy_bird()
                 if (bird_y >= TFT_HEIGHT - bird_radius)
                 {
                     bird_y = TFT_HEIGHT - bird_radius;
+                    play_sfx(sfx_gameover_fast);
                     end_game = true; // Hit ground
                 }
 
@@ -297,6 +300,7 @@ void play_flappy_bird()
                 // Collision check
                 if (check_pipe_collision(bird_x, bird_y))
                 {
+                    play_sfx(sfx_gameover_fast);
                     end_game = true;
                 }
             }
