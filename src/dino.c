@@ -176,7 +176,7 @@ static void draw_hud(uint16_t score, uint16_t hi_score)
     TFT_DrawHLine_Fast(0, 0, DINO_SCREEN_WIDTH, 0x07E0);
 
     // Title Banner
-    TFT_DrawString(17, 2, "Gaurdians of Sunshine", 0x07E0, 0x0000, 1);
+    TFT_DrawString(17, 2, "Guardians of Sunshine", 0x07E0, 0x0000, 1);
 
     // Distinct separation line between Title and Score
     TFT_DrawHLine_Fast(8, 11, 144, 0x03E0);
@@ -503,7 +503,7 @@ void play_dino(void)
                 TFT_DrawVLine_Fast(14, 50, 46, 0x07E0);
                 TFT_DrawVLine_Fast(145, 50, 46, 0x07E0);
 
-                TFT_DrawString(20, 56, "GAURDIANS OF SUNSHINE", 0x07E0, 0x0000, 1);
+                TFT_DrawString(20, 56, "GUARDIANS OF SUNSHINE", 0x07E0, 0x0000, 1);
                 TFT_DrawString(38, 70, "START: Play", 0x07E0, 0x0000, 1);
                 TFT_DrawString(40, 82, "BACK: Exit", 0x03E0, 0x0000, 1);
 
