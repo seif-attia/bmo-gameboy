@@ -283,7 +283,7 @@ void play_flappy_bird()
                 if (bird_y >= TFT_HEIGHT - bird_radius)
                 {
                     bird_y = TFT_HEIGHT - bird_radius;
-                    play_sfx(sfx_gameover_fast);
+                    play_sfx(sfx_gameover_1);
                     end_game = true; // Hit ground
                 }
 
@@ -300,7 +300,7 @@ void play_flappy_bird()
                 // Collision check
                 if (check_pipe_collision(bird_x, bird_y))
                 {
-                    play_sfx(sfx_gameover_fast);
+                    play_sfx(sfx_gameover_2);
                     end_game = true;
                 }
             }

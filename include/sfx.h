@@ -6,7 +6,10 @@
 // Game Over & Victory
 extern const char sfx_gameover_retro[] PROGMEM;
 extern const char sfx_gameover_fast[] PROGMEM;
-const char sfx_gameover_mario[] PROGMEM;
+extern const char sfx_gameover_mario[] PROGMEM;
+extern const char sfx_gameover_1[] PROGMEM;
+extern const char sfx_gameover_2[] PROGMEM;
+extern const char sfx_gameover_3[] PROGMEM;
 
 // Snake
 extern const char sfx_snake_eat[] PROGMEM;
