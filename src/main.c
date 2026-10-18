@@ -12,6 +12,8 @@
 #include "serial.h"
 #include "flappybird.h"
 #include "Snake.h"
+#include "tictactoe.h"
+#include "pong.h"
 #include "stdio.h"
 #include "adc.h"
 #include "battery_status.h"
@@ -120,10 +122,9 @@ int main(void)
 
                 if (menu_get_selected() == 0)
                 {
-                    TFT_DrawString(20, 60, "TETRIS", TFT_RED, TFT_BLACK, 1);
-                    /* ADD game entry point later and uncomment the lines below */
-                    // TFT_FillScreen(TFT_BLACK);
-                    // menu();
+                    play_tic_tac_toe();
+                    TFT_FillScreen(MENU_BACKGROUND);
+                    menu();
                 }
                 else if (menu_get_selected() == 1)
                 {
@@ -140,6 +141,12 @@ int main(void)
                 else if (menu_get_selected() == 3)
                 {
                     play_dino();
+                    TFT_FillScreen(MENU_BACKGROUND);
+                    menu();
+                }
+                else if (menu_get_selected() == 4)
+                {
+                    play_pong();
                     TFT_FillScreen(MENU_BACKGROUND);
                     menu();
                 }
