@@ -5,11 +5,12 @@ const char sfx_gameover_retro[] PROGMEM = "GameOver:d=16,o=5,b=160:g,f,e,4d";
 const char sfx_gameover_fast[] PROGMEM = "Die:d=32,o=5,b=240:b,a,g,f,e,d,c";
 const char sfx_gameover_mario[] PROGMEM = "better_gameover:d=4,o=5,b=150:8c6,8p,8g,8p,8e.,8a,8b,8a,8g#.,8a#.,8g#.,16g.,16f.,1g";
 const char sfx_gameover_1[] PROGMEM = "basic_pi2:d=4,o=5,b=120:32p,16f#,16f,16e,16d#,8d";
-const char sfx_gameover_2[] PROGMEM = "basic_pi1:d=4,o=5,b=120:32p,16d#6,16d6,16c#6,16c.6,16b.,8p,16d.,8p.,8b.";
-const char sfx_gameover_3[] PROGMEM = "basic_pi3:d=4,o=5,b=120:8g#.,a,8g.,c#.";
+// const char sfx_gameover_2[] PROGMEM = "basic_pi1:d=4,o=5,b=120:32p,16d#6,16d6,16c#6,16c.6,16b.,8p,16d.,8p.,8b.";
+// const char sfx_gameover_3[] PROGMEM = "basic_pi3:d=4,o=5,b=120:8g#.,a,8g.,c#.";
 
 // Snake
 const char sfx_snake_eat[] PROGMEM = "Eat:d=16,o=6,b=260:c,g";
+const char sfx_snake_hit_wall[] PROGMEM = "Hit:d=32,o=4,b=240:g3,d3,32p,c3";
 
 // Flappy Bird & Dino
 const char sfx_flappy_score[] PROGMEM = "Score:d=16,o=6,b=240:e,8g";

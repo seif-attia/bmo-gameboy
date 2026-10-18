@@ -11,9 +11,9 @@
 #include "sfx.h"
 
 // Hardware control helpers
-#define TFT_CS_LOW()   CLR_BIT(PORTB, TFT_CS)
-#define TFT_CS_HIGH()  SET_BIT(PORTB, TFT_CS)
-#define TFT_DC_HIGH()  SET_BIT(PORTB, TFT_DC)
+#define TFT_CS_LOW() CLR_BIT(PORTB, TFT_CS)
+#define TFT_CS_HIGH() SET_BIT(PORTB, TFT_CS)
+#define TFT_DC_HIGH() SET_BIT(PORTB, TFT_DC)
 
 // Gameplay Dimensions
 #define MARCY_W 14
@@ -31,19 +31,19 @@
 
 // Dark Gray Cave Environment Palette (RGB565)
 // "dark gray with some spots of even darker grey, nothing crazy"
-#define COLOR_CAVE_GRAY      0x2104  // Clean dark slate gray (RGB 33, 33, 35)
-#define COLOR_CAVE_DARK_SPOT 0x1082  // Even darker charcoal spot (RGB 17, 17, 18)
+#define COLOR_CAVE_GRAY 0x2104      // Clean dark slate gray (RGB 33, 33, 35)
+#define COLOR_CAVE_DARK_SPOT 0x1082 // Even darker charcoal spot (RGB 17, 17, 18)
 
 // Conical Stone Spikes Palette
-#define COLOR_SPIKE_DARK     0x39E7  // Shaded right flank of stone cone
-#define COLOR_SPIKE_BODY     0x5ACB  // Mid stone gray body
-#define COLOR_SPIKE_LIGHT    0x8410  // Highlighted left flank of stone cone
-#define COLOR_SPIKE_POINT    0xBDF7  // Sharp tip highlight point
+#define COLOR_SPIKE_DARK 0x39E7  // Shaded right flank of stone cone
+#define COLOR_SPIKE_BODY 0x5ACB  // Mid stone gray body
+#define COLOR_SPIKE_LIGHT 0x8410 // Highlighted left flank of stone cone
+#define COLOR_SPIKE_POINT 0xBDF7 // Sharp tip highlight point
 
 // UI / Vampire Accents
-#define COLOR_VAMP_RED       0xF800  // Bright blood red
-#define COLOR_VAMP_DARK_RED  0x6800  // Deep blood crimson
-#define COLOR_VAMP_PALE      0xDEFB  // Marceline pale skin accent
+#define COLOR_VAMP_RED 0xF800      // Bright blood red
+#define COLOR_VAMP_DARK_RED 0x6800 // Deep blood crimson
+#define COLOR_VAMP_PALE 0xDEFB     // Marceline pale skin accent
 
 // Marceline 16-Color Palette
 // True to Marceline from Adventure Time:
@@ -102,8 +102,7 @@ static const uint8_t marceline_float_sprite[98] PROGMEM = {
     // Row 12: Long raven hair tips dragging below
     0x00, 0x01, 0x11, 0x00, 0x00, 0x00, 0x00,
     // Row 13: Final hair curl
-    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00
-};
+    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
 
 // 14x14 Marceline Rising / Flapping Pose (hair and legs trail back dynamically as she ascends)
 static const uint8_t marceline_rise_sprite[98] PROGMEM = {
@@ -134,8 +133,7 @@ static const uint8_t marceline_rise_sprite[98] PROGMEM = {
     // Row 12: Long hair strands sweeping back
     0x01, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
     // Row 13:
-    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00
-};
+    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 typedef struct
 {
@@ -228,7 +226,8 @@ static uint16_t get_conical_spike_pixel(uint8_t col_idx, uint8_t y, uint8_t tip_
     uint8_t dist_from_tip = is_upper ? (tip_y - y) : (y - tip_y);
     uint8_t cone_height = is_upper ? tip_y : (TFT_HEIGHT - 1 - tip_y);
 
-    if (cone_height == 0) cone_height = 1;
+    if (cone_height == 0)
+        cone_height = 1;
 
     // Linear cone expansion: radius(d) = (d * (SPIKE_WIDTH / 2)) / cone_height
     // At tip (dist=0): radius = 0 (only sharp central point)
@@ -506,7 +505,8 @@ static void draw_string_centered(uint8_t y, const char *str, uint16_t color, uin
 {
     uint8_t len = 0;
     const char *p = str;
-    while (*p++) len++;
+    while (*p++)
+        len++;
     uint8_t str_width = len * 6 * size;
     uint8_t x = (str_width >= TFT_WIDTH) ? 0 : (TFT_WIDTH - str_width) / 2;
     TFT_DrawString(x, y, str, color, bg_color, size);
@@ -630,7 +630,7 @@ void play_flappy_bird(void)
                 // Conical spike collision check
                 if (check_spike_collision(marcy_x, (uint8_t)marcy_y))
                 {
-                    play_sfx(sfx_gameover_2);
+                    play_sfx(sfx_gameover_1);
                     end_game = true;
                 }
             }
@@ -700,4 +700,3 @@ void play_flappy_bird(void)
     }
     stop_song();
 }
-
