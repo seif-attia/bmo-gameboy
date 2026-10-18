@@ -178,8 +178,8 @@ static void draw_scoreboard(void)
     TFT_DrawVLine_Fast(123, 8, 112, COLOR_ICE_CORE);
     TFT_DrawVLine_Fast(157, 8, 112, COLOR_ICE_DEEP);
 
-    // Title: "T-T-T"
-    TFT_DrawString(127, 12, "T-T-T", COLOR_ICE_HIGHLIGHT, 0x11C9, 1);
+    // Title: "I-K-F"
+    TFT_DrawString(127, 12, "I-K-F", COLOR_ICE_HIGHLIGHT, 0x11C9, 1);
 
     // Player 1: Ice King
     TFT_DrawString(125, 27, "IK:", COLOR_IK_SKIN, 0x11C9, 1);
