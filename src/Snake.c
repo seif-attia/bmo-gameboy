@@ -32,7 +32,7 @@ static Direction current_dir;
 static Direction next_dir;
 static Point food;
 uint16_t score;
-uint32_t move_interval = 300;
+uint32_t move_interval = 250;
 
 static void spawn_food()
 {
@@ -67,7 +67,7 @@ static void snake_init()
     current_dir = DIR_RIGHT;
     next_dir = DIR_RIGHT;
     score = 0;
-    move_interval = 120;
+    move_interval = 250;
 
     snake[0].x = 10;
     snake[0].y = 10;
@@ -171,9 +171,9 @@ void play_snake(void)
                     snake_length++;
                 }
                 score += 10;
-                if (move_interval > 20)
+                if (move_interval > 100)
                 {
-                    move_interval -= 5;
+                    move_interval -= 2;
                 }
 
                 spawn_food();
@@ -197,11 +197,11 @@ void play_snake(void)
     TFT_FillScreen(TFT_BLACK);
     char text[15];
     strcpy_P(text, PSTR("GAME OVER"));
-    TFT_DrawString(TFT_WIDTH / 4 - 15, TFT_HEIGHT / 4, text, TFT_RED, TFT_BLACK, 2);
+    TFT_DrawString(25, 32, text, TFT_RED, TFT_BLACK, 2);
     sprintf(s_b, "Score: %u", score);
-    TFT_DrawString(TFT_WIDTH / 4 + 10, TFT_HEIGHT / 2 - 10, s_b, TFT_WHITE, TFT_BLACK, 1);
-
-    TFT_DrawString(TFT_WIDTH / 3 + 14, TFT_HEIGHT / 2 + 10, "BACK", TFT_WHITE, TFT_BLACK, 1);
+    TFT_DrawString(50, 54, s_b, TFT_WHITE, TFT_BLACK, 1);
+    TFT_DrawString(60, 69, "START", TFT_GREEN, TFT_BLACK, 1);
+    TFT_DrawString(60, 84, "BACK", TFT_WHITE, TFT_BLACK, 1);
     while (true)
     {
         update_music();
@@ -209,6 +209,10 @@ void play_snake(void)
         if (get_key(BACK))
         {
             break;
+        }
+        if (get_key(START))
+        {
+            play_snake();
         }
     }
     stop_song();
