@@ -218,8 +218,8 @@ static Direction current_dir;
 static Direction next_dir;
 static Point food;
 static uint8_t food_type = 0;
-uint16_t score;
-uint32_t move_interval = 250;
+static uint16_t score = 0;
+static uint32_t move_interval = 250;
 
 // Function to calculate exact Candy Kingdom scenery color at any pixel (x, y)
 // This gives an authentic Adventure Time landscape that Jake moves across:
@@ -330,19 +330,19 @@ static uint16_t get_candy_kingdom_pixel(uint8_t x, uint8_t y)
     // Region 3: Candy Kingdom Rolling Frosting Hills & Sugar Soda River (y: 63 .. 127)
     // Sweet soda river winding through the candy landscape
     // River path: curves from x=135 at y=63 down through x=80 at y=95 to x=25 at y=127
-    int8_t river_center = (int8_t)(135 - ((int16_t)(y - 63) * 110) / 64);
-    if (abs((int8_t)x - river_center) <= 5)
+    int16_t river_center = 135 - (((int16_t)(y - 63) * 110) >> 6);
+    if (abs((int16_t)x - river_center) <= 5)
     {
         // Soda stream with sparkling foam
-        if (abs((int8_t)x - river_center) == 5) return CK_ICING_WHITE;
+        if (abs((int16_t)x - river_center) == 5) return CK_ICING_WHITE;
         if ((x + y) % 5 == 0) return CK_ICING_WHITE;
         if ((x + y) % 2 == 0) return CK_RIVER_CREAM;
         return CK_RIVER_DEEP;
     }
 
     // Graham cracker / sugar wafer walkway
-    int8_t road_center = (int8_t)(25 + ((int16_t)(y - 63) * 60) / 64);
-    if (abs((int8_t)x - road_center) <= 4)
+    int16_t road_center = 25 + (((int16_t)(y - 63) * 60) >> 6);
+    if (abs((int16_t)x - road_center) <= 4)
     {
         if ((x % 3 == 0) && (y % 3 == 0)) return CK_ROAD_DARK;
         return CK_ROAD_COOKIE;
@@ -550,6 +550,46 @@ static void draw_candy(int8_t gx, int8_t gy, uint8_t type)
     TFT_CS_HIGH();
 }
 
+static void draw_candy_on_bg(int16_t px, int16_t py, uint8_t type, uint16_t bg_color)
+{
+    const uint8_t *sprite;
+    switch (type)
+    {
+    case 0: sprite = candy_peppermint; break;
+    case 1: sprite = candy_gumdrop; break;
+    case 2: sprite = candy_lemon; break;
+    case 3: sprite = candy_jellybean; break;
+    case 4:
+    default: sprite = candy_raspberry; break;
+    }
+
+    TFT_SetAddrWindow((uint8_t)px, (uint8_t)py, (uint8_t)(px + 5), (uint8_t)(py + 5));
+    TFT_CS_LOW();
+    TFT_DC_HIGH();
+
+    uint8_t byte_idx = 0;
+    for (uint8_t y = 0; y < 6; y++)
+    {
+        for (uint8_t x = 0; x < 6; x += 2)
+        {
+            uint8_t b = pgm_read_byte(&sprite[byte_idx++]);
+            uint8_t p1 = b >> 4;
+            uint8_t p2 = b & 0x0F;
+
+            if (p1 == 0)
+                TFT_spiWrite16(bg_color);
+            else
+                TFT_spiWrite16(pgm_read_word(&candy_palette[p1]));
+
+            if (p2 == 0)
+                TFT_spiWrite16(bg_color);
+            else
+                TFT_spiWrite16(pgm_read_word(&candy_palette[p2]));
+        }
+    }
+    TFT_CS_HIGH();
+}
+
 static void spawn_food(void)
 {
     bool on_snake;
@@ -610,8 +650,7 @@ void play_snake(void)
         draw_candy_kingdom_full_scene();
         snake_init();
 
-        uint32_t last_move_time = millis();
-        char s_b[8];
+        char s_b[16];
         uint16_t last_s = 0;
 
         // Initial render: candy and full Jake
@@ -622,6 +661,40 @@ void play_snake(void)
         }
         draw_jake_head(snake[0].x, snake[0].y, current_dir);
 
+        // Ready screen: wait for player to press START
+        draw_string_centered(58, "PRESS START", 0xFDE0, CK_BANNER_MAGENTA, 1);
+
+        while (!get_key(START))
+        {
+            update_music();
+            timer_update();
+            if (get_key(BACK))
+            {
+                again = false;
+                break;
+            }
+        }
+
+        if (!again)
+            break;
+
+        // Clear "PRESS START" text by restoring background cells
+        for (int8_t gy = 8; gy <= 11; gy++)
+        {
+            for (int8_t gx = 6; gx <= 20; gx++)
+            {
+                restore_candy_kingdom_cell(gx, gy);
+            }
+        }
+        // Ensure candy and Jake remain clean if overlapped
+        draw_candy(food.x, food.y, food_type);
+        for (uint8_t i = 1; i < snake_length; i++)
+        {
+            draw_jake_segment(snake[i].x, snake[i].y, (i == snake_length - 1));
+        }
+        draw_jake_head(snake[0].x, snake[0].y, current_dir);
+
+        uint32_t last_move_time = millis();
         uint8_t end = false;
         while (!end)
         {
@@ -726,18 +799,18 @@ void play_snake(void)
                     TFT_DrawString(60, 3, s_b, 0xFFE0, CK_BANNER_MAGENTA, 1);
                 }
 
-                // Draw Jake: body segments + Jake's head
-                for (uint8_t i = 1; i < snake_length; i++)
+                // Draw Jake: only update tail, body transition, and new head
+                draw_jake_segment(snake[snake_length - 1].x, snake[snake_length - 1].y, true);
+                if (snake_length > 2)
                 {
-                    draw_jake_segment(snake[i].x, snake[i].y, (i == snake_length - 1));
+                    draw_jake_segment(snake[1].x, snake[1].y, false);
                 }
                 draw_jake_head(snake[0].x, snake[0].y, current_dir);
 
-                // Ensure candy remains visible if redrawn
+                // Ensure candy remains visible
                 draw_candy(food.x, food.y, food_type);
             }
         }
-
 
         if (again)
         {
@@ -762,13 +835,8 @@ void play_snake(void)
             TFT_FillRect(11, 15, 138, 26, CK_BANNER_MAGENTA);
             TFT_DrawHLine_Fast(11, 41, 138, CK_BANNER_BORDER);
 
-            // 1. Title: "SUGAR CRASH!" (12 chars * 12 = 144 px -> use size 1 with banner or clean size 1 bold/size 2)
-            // "SUGAR CRASH!" in size 2 is 144px which touches border; in size 1 bold (draw at x, then x+1)
-            // or "SUGAR CRUSH!" / "GAME OVER"
-            // With size 1: len 12 * 6 = 72px -> x = (160 - 72)/2 = 44px
-            // Double-rendered for bold effect in the header banner:
+            // 1. Title: "SUGAR CRASH!"
             draw_string_centered(24, "SUGAR CRASH!", 0xFDE0, CK_BANNER_MAGENTA, 1);
-            // Shadow offset for punchy arcade look
             TFT_DrawString(43, 24, "SUGAR CRASH!", 0xFFFF, CK_BANNER_MAGENTA, 1);
 
             // 2. Score section with pill badge
@@ -782,8 +850,8 @@ void play_snake(void)
             draw_string_centered(53, s_b, CK_BANNER_MAGENTA, 0xFFFF, 1);
 
             // Decorative candy icons beside the score badge
-            draw_candy(3, 8, 0);  // Peppermint on left
-            draw_candy(22, 8, 1); // Gumdrop on right
+            draw_candy_on_bg(16, 54, 0, CK_CASTLE_PINK);
+            draw_candy_on_bg(138, 54, 1, CK_CASTLE_PINK);
 
             // 3. Action Buttons with distinct badges
             // START Button
@@ -806,14 +874,14 @@ void play_snake(void)
             {
                 update_music();
                 timer_update();
-                if (get_key(BACK))
-                {
-                    again = false;
-                    break;
-                }
                 if (get_key(START))
                 {
                     again = true;
+                    break;
+                }
+                if (get_key(BACK))
+                {
+                    again = false;
                     break;
                 }
             }

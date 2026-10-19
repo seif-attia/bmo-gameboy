@@ -292,10 +292,22 @@ static void draw_spike_column(int16_t x, uint8_t col_idx, uint8_t gap_y, uint8_t
     TFT_CS_LOW();
     TFT_DC_HIGH();
 
+    int8_t center_dist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
+    uint8_t upper_h = (gap_y > 1) ? (gap_y - 1) : 1;
+    uint16_t upper_thresh = (uint16_t)center_dist * upper_h;
+
     // 1. Upper hanging conical stalactite (from ceiling y=0 down to gap_y)
     for (uint8_t y = 0; y < gap_y; y++)
     {
-        TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, gap_y - 1, true));
+        uint8_t dist_from_tip = (gap_y - 1) - y;
+        if ((uint16_t)dist_from_tip * 10 < upper_thresh)
+        {
+            TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
+        }
+        else
+        {
+            TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, gap_y - 1, true));
+        }
     }
 
     // 2. Open air gap for Marceline
@@ -306,9 +318,20 @@ static void draw_spike_column(int16_t x, uint8_t col_idx, uint8_t gap_y, uint8_t
 
     // 3. Lower rising conical stalagmite (from gap_y + gap_h down to floor)
     uint8_t lower_tip = gap_y + gap_h;
+    uint8_t lower_h = (TFT_HEIGHT - 1 > lower_tip) ? (TFT_HEIGHT - 1 - lower_tip) : 1;
+    uint16_t lower_thresh = (uint16_t)center_dist * lower_h;
+
     for (uint8_t y = lower_tip; y < TFT_HEIGHT; y++)
     {
-        TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, lower_tip, false));
+        uint8_t dist_from_tip = y - lower_tip;
+        if ((uint16_t)dist_from_tip * 10 < lower_thresh)
+        {
+            TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
+        }
+        else
+        {
+            TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, lower_tip, false));
+        }
     }
 
     TFT_CS_HIGH();
@@ -340,24 +363,22 @@ static void update_and_draw_spikes(uint8_t marcy_x)
             }
         }
 
-        // Incremental rendering for smooth 60 FPS motion
-        for (int16_t x = new_x; x < old_x; x++)
+        // Clear vacated trailing edge columns on the right
+        for (int16_t clear_x = new_x + SPIKE_WIDTH; clear_x < old_x + SPIKE_WIDTH; clear_x++)
         {
-            // Draw newly revealed column of the conical spike on the left
-            for (uint8_t c = 0; c < SPIKE_WIDTH; c++)
-            {
-                int16_t col_x = x + c;
-                if (col_x >= 0 && col_x < TFT_WIDTH)
-                {
-                    draw_spike_column(col_x, c, spikes[i].gap_y, spikes[i].gap_h);
-                }
-            }
-
-            // Restore dark gray cave background on trailing edge on the right
-            int16_t clear_x = x + SPIKE_WIDTH;
             if (clear_x >= 0 && clear_x < TFT_WIDTH)
             {
                 draw_cave_column(clear_x);
+            }
+        }
+
+        // Render spike columns at new position
+        for (uint8_t c = 0; c < SPIKE_WIDTH; c++)
+        {
+            int16_t col_x = new_x + c;
+            if (col_x >= 0 && col_x < TFT_WIDTH)
+            {
+                draw_spike_column(col_x, c, spikes[i].gap_y, spikes[i].gap_h);
             }
         }
 
@@ -560,9 +581,30 @@ void play_flappy_bird(void)
         if (!play_again)
             break;
 
-        // Clear splash text
-        TFT_FillRect(0, 16, TFT_WIDTH, 14, COLOR_CAVE_GRAY);
-        TFT_FillRect(0, TFT_HEIGHT - 26, TFT_WIDTH, 14, COLOR_CAVE_GRAY);
+        // Clear splash text by restoring backdrop pattern
+        TFT_SetAddrWindow(0, 16, TFT_WIDTH - 1, 29);
+        TFT_CS_LOW();
+        TFT_DC_HIGH();
+        for (uint8_t y = 16; y <= 29; y++)
+        {
+            for (uint8_t x = 0; x < TFT_WIDTH; x++)
+            {
+                TFT_spiWrite16(get_cave_pixel(x, y));
+            }
+        }
+        TFT_CS_HIGH();
+
+        TFT_SetAddrWindow(0, TFT_HEIGHT - 26, TFT_WIDTH - 1, TFT_HEIGHT - 13);
+        TFT_CS_LOW();
+        TFT_DC_HIGH();
+        for (uint8_t y = TFT_HEIGHT - 26; y <= TFT_HEIGHT - 13; y++)
+        {
+            for (uint8_t x = 0; x < TFT_WIDTH; x++)
+            {
+                TFT_spiWrite16(get_cave_pixel(x, y));
+            }
+        }
+        TFT_CS_HIGH();
         init_spikes();
 
         // 2. MAIN GAMEPLAY LOOP
@@ -600,9 +642,6 @@ void play_flappy_bird(void)
                     }
                 }
 
-                // Erase previous Marceline position
-                erase_marceline(marcy_x, marcy_y_prev);
-
                 marcy_y += velocity;
 
                 // Ceiling and floor bounds
@@ -620,6 +659,12 @@ void play_flappy_bird(void)
 
                 // Update stone conical spikes
                 update_and_draw_spikes(marcy_x);
+
+                // Erase previous Marceline position if it changed
+                if (marcy_y != marcy_y_prev)
+                {
+                    erase_marceline(marcy_x, marcy_y_prev);
+                }
 
                 // Render Marceline at new position
                 draw_marceline(marcy_x, marcy_y, is_rising || (velocity < 0));
