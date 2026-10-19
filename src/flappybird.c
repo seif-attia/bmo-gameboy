@@ -6,29 +6,30 @@
 #include "timer.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <avr/pgmspace.h>
 #include "music.h"
 #include "sfx.h"
 
 // Hardware control helpers
-#define TFT_CS_LOW()   CLR_BIT(PORTB, TFT_CS)
-#define TFT_CS_HIGH()  SET_BIT(PORTB, TFT_CS)
-#define TFT_DC_HIGH()  SET_BIT(PORTB, TFT_DC)
+#define TFT_CS_LOW() CLR_BIT(PORTB, TFT_CS)
+#define TFT_CS_HIGH() SET_BIT(PORTB, TFT_CS)
+#define TFT_DC_HIGH() SET_BIT(PORTB, TFT_DC)
 
 // Gameplay Dimensions
 #define MARCY_W 14
 #define MARCY_H 14
 
 #define SPIKE_WIDTH 20
-#define INITIAL_GAP 68
-#define INITIAL_SPACING 105
-#define MIN_GAP 48
+#define INITIAL_GAP 64
+#define INITIAL_SPACING 100
+#define MIN_GAP 46
 #define MAX_SPIKES 3
+#define PLAY_CEILING_Y 12
 
 // Lightweight unsigned integer to ASCII conversion (no sprintf)
 static void utoa16(uint16_t val, char *buf)
 {
-    // Write digits in reverse order then reverse the string.
     char *p = buf;
     if (val == 0)
     {
@@ -41,7 +42,6 @@ static void utoa16(uint16_t val, char *buf)
         *p++ = '0' + (val % 10);
         val /= 10;
     }
-    // Reverse the string in place
     char *end = p - 1;
     while (buf < end)
     {
@@ -52,158 +52,90 @@ static void utoa16(uint16_t val, char *buf)
     *p = '\0';
 }
 
-
 // Fixed-point scaling factor: 1 pixel = 16 sub-pixel units
 #define FP_SHIFT 4
 #define FP_SCALE (1 << FP_SHIFT)
 
-// Dark Gray Cave Environment Palette (RGB565)
-// "dark gray with some spots of even darker grey, nothing crazy"
-#define COLOR_CAVE_GRAY      0x2104  // Clean dark slate gray (RGB 33, 33, 35)
-#define COLOR_CAVE_DARK_SPOT 0x1082  // Even darker charcoal spot (RGB 17, 17, 18)
+// Solid Black Background Palette (RGB565)
+#define COLOR_BG 0x0000 // Pure solid black
 
-// Conical Stone Spikes Palette
-#define COLOR_SPIKE_DARK     0x39E7  // Shaded right flank of stone cone
-#define COLOR_SPIKE_BODY     0x5ACB  // Mid stone gray body
-#define COLOR_SPIKE_LIGHT    0x8410  // Highlighted left flank of stone cone
-#define COLOR_SPIKE_POINT    0xBDF7  // Sharp tip highlight point
+// Rectangular Stone Spike / Pipe Palette
+#define COLOR_SPIKE_DARK 0x2945  // Deep charcoal shadow flank of stone pipe
+#define COLOR_SPIKE_BODY 0x5ACB  // Mid stone gray body
+#define COLOR_SPIKE_LIGHT 0x9CE7 // Highlighted left flank of stone pipe
+#define COLOR_SPIKE_POINT 0xD69A // Highlight stone cap / rim
 
 // UI / Vampire Accents
-#define COLOR_VAMP_RED       0xF800  // Bright blood red
-#define COLOR_VAMP_DARK_RED  0x6800  // Deep blood crimson
-#define COLOR_VAMP_PALE      0xDEFB  // Marceline pale skin accent
+#define COLOR_VAMP_RED 0xF800      // Bright blood red
+#define COLOR_VAMP_DARK_RED 0x6800 // Deep blood crimson
+#define COLOR_VAMP_PALE 0xDEFB     // Marceline pale skin accent
 
-// Marceline 16-Color Palette
-// True to Marceline from Adventure Time:
-// 0: Transparent/Cave  1: Jet Black Raven Hair  2: Hair Sheen Dark Navy  3: Pale Bluish-Gray Skin
-// 4: Red Vampire Bite Dots  5: Charcoal Gray Tank Top  6: Tank Top Highlight  7: Blue Denim Jeans
-// 8: Deep Denim Blue Shadow  9: Brown Leather Boots  10: Crimson Bass Body  11: Bass White Pickguard
-// 12: Silver Strings/Pegs  13: Black details (eye pupils, mouth, guitar neck)  14: White fangs / eye whites
 static const uint16_t marcy_palette[16] PROGMEM = {
-    0x0000, // 0: Transparent
-    0x0000, // 1: Jet Black Raven Hair
-    0x18C5, // 2: Hair Sheen Navy
-    0xCE79, // 3: Marceline Pale Blue-Gray Skin (RGB 206, 207, 206)
-    0xF800, // 4: Blood Red Vampire Bite Marks / Eyes
-    0x3186, // 5: Dark Gray Tank Top
-    0x528A, // 6: Tank Top Gray Highlight
-    0x2A54, // 7: Classic Blue Denim Jeans
-    0x118C, // 8: Deep Denim Shadow
-    0x59A4, // 9: Brown Leather Boots
-    0xD800, // 10: Crimson Red Axe Bass Body
-    0xFFFF, // 11: Bass White Pickguard / Sparkle
-    0xBDF7, // 12: Silver Strings / Neck Frets
-    0x0841, // 13: Dark Outline / Details
-    0xFFFF, // 14: White Fangs / Eye White
-    0x8800  // 15: Deep Red Shadow on Axe Bass
-};
+    COLOR_BG,   0x0000, 0x18C5, 0xCE79,
+    0xF800,     0x3186, 0x528A, 0x2A54,
+    0x118C,     0x59A4, 0xD800, 0xFFFF,
+    0xBDF7,     0x0841, 0xFFFF, 0x8800};
 
-// 14x14 High-Fidelity Marceline Sprite: Floating / Gliding Pose
-// Showing long flowing black hair, pale face with red bite marks on her neck,
-// dark gray tank top, blue jeans, brown boots, and her iconic Crimson Axe Bass slung at her side!
-// 14x14 = 196 pixels = 98 bytes (4 bits per pixel, 2 pixels per byte)
 static const uint8_t marceline_float_sprite[98] PROGMEM = {
-    // Row 0: Top of hair puff
     0x00, 0x01, 0x11, 0x10, 0x00, 0x00, 0x00,
-    // Row 1: Flowing hair & bangs
     0x00, 0x11, 0x21, 0x11, 0x10, 0x00, 0x00,
-    // Row 2: Hair framing face, pale skin, black eye
     0x01, 0x13, 0x33, 0x14, 0x11, 0x00, 0x00,
-    // Row 3: Marceline smiling face profile, fang, neck
     0x01, 0x13, 0x3E, 0x31, 0x11, 0x00, 0x00,
-    // Row 4: Neck with signature 2 red bite marks, hair flowing back
     0x11, 0x11, 0x34, 0x41, 0x11, 0x00, 0x00,
-    // Row 5: Tank top torso + silver guitar neck start
     0x12, 0x11, 0x56, 0x51, 0x1C, 0xC0, 0x00,
-    // Row 6: Tank top + Axe Bass body upper horn
     0x11, 0x11, 0x55, 0x5A, 0xAC, 0x00, 0x00,
-    // Row 7: Waist + Axe Bass crimson body & white pickguard
     0x01, 0x11, 0x77, 0xAB, 0xBA, 0x00, 0x00,
-    // Row 8: Denim jeans + Axe Bass blade edge
     0x00, 0x11, 0x78, 0xAA, 0xFA, 0x00, 0x00,
-    // Row 9: Flowing legs floating back + bottom of Axe Bass
     0x00, 0x01, 0x17, 0x7A, 0xAA, 0x00, 0x00,
-    // Row 10: Lower legs & boots
     0x00, 0x00, 0x17, 0x89, 0x90, 0x00, 0x00,
-    // Row 11: Brown boots trailing back
     0x00, 0x00, 0x01, 0x99, 0x90, 0x00, 0x00,
-    // Row 12: Long raven hair tips dragging below
     0x00, 0x01, 0x11, 0x00, 0x00, 0x00, 0x00,
-    // Row 13: Final hair curl
-    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00
-};
+    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
 
-// 14x14 Marceline Rising / Flapping Pose (hair and legs trail back dynamically as she ascends)
 static const uint8_t marceline_rise_sprite[98] PROGMEM = {
-    // Row 0: Hair sweeps back higher
     0x01, 0x11, 0x11, 0x00, 0x00, 0x00, 0x00,
-    // Row 1: Flowing hair & bangs
     0x11, 0x21, 0x11, 0x11, 0x00, 0x00, 0x00,
-    // Row 2: Face forward looking up, pale skin, red eyes
     0x11, 0x13, 0x33, 0x14, 0x10, 0x00, 0x00,
-    // Row 3: Face profile + fang
     0x12, 0x13, 0x3E, 0x31, 0x10, 0x00, 0x00,
-    // Row 4: Neck with 2 red bite marks
     0x11, 0x11, 0x34, 0x41, 0x10, 0x00, 0x00,
-    // Row 5: Tank top + guitar neck tilted back
     0x11, 0x15, 0x65, 0x1C, 0xC0, 0x00, 0x00,
-    // Row 6: Tank top + Axe Bass body
     0x01, 0x15, 0x55, 0xAA, 0xCC, 0x00, 0x00,
-    // Row 7: Waist + Axe Bass body & white pickguard
     0x00, 0x17, 0x7A, 0xBB, 0xAA, 0x00, 0x00,
-    // Row 8: Denim jeans swept back + blade
     0x00, 0x17, 0x8A, 0xAA, 0xFA, 0x00, 0x00,
-    // Row 9: Swept legs + boots
     0x00, 0x11, 0x77, 0x8A, 0xAA, 0x00, 0x00,
-    // Row 10: Floating boots
     0x00, 0x01, 0x17, 0x99, 0x90, 0x00, 0x00,
-    // Row 11: Boots
     0x00, 0x00, 0x19, 0x90, 0x00, 0x00, 0x00,
-    // Row 12: Long hair strands sweeping back
     0x01, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
-    // Row 13:
-    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00
-};
+    0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 typedef struct
 {
     int32_t x_fp;   // Sub-pixel X coordinate (x * 16)
-    uint8_t gap_y;  // Top coordinate of the gap
+    uint8_t gap_y;  // Top coordinate of the gap (>= PLAY_CEILING_Y)
     uint8_t gap_h;  // Height of the gap
-    uint8_t active; // Whether the spike pillar is currently on screen
+    uint8_t active; // Whether the pillar is currently on screen
     uint8_t passed;
 } SpikePillar;
 
 static SpikePillar spikes[MAX_SPIKES];
 static uint16_t score = 0;
-static uint16_t prev_score = 0;
 static uint16_t high_score = 0;
 
 static uint16_t spike_speed = 16;
 static uint8_t current_gap = INITIAL_GAP;
 static uint8_t spike_spacing = INITIAL_SPACING;
 
-// "dark gray with some spots of even darker grey, nothing crazy"
-static inline uint16_t get_cave_pixel(uint8_t x, uint8_t y)
-{
-    // Subtle, clean dark gray texture: occasional dark charcoal mineral spots
-    uint8_t spot = (uint8_t)((x * 37) ^ (y * 29));
-    if ((spot & 0x1F) == 7)
-    {
-        return COLOR_CAVE_DARK_SPOT;
-    }
-    return COLOR_CAVE_GRAY;
-}
-
 static void spawn_spike_pillar(uint8_t index, int16_t start_x)
 {
     spikes[index].x_fp = (int32_t)start_x * FP_SCALE;
     spikes[index].gap_h = current_gap;
 
-    uint8_t min_y = 12;
-    uint8_t max_y = TFT_HEIGHT - 12 - spikes[index].gap_h;
-    spikes[index].gap_y = min_y + (rand() % (max_y - min_y + 1));
+    uint8_t min_y = PLAY_CEILING_Y + 4;
+    uint8_t max_y = TFT_HEIGHT - 16 - spikes[index].gap_h;
+    if (max_y < min_y)
+        max_y = min_y;
 
+    spikes[index].gap_y = min_y + (rand() % (max_y - min_y + 1));
     spikes[index].active = 1;
     spikes[index].passed = 0;
 }
@@ -211,7 +143,6 @@ static void spawn_spike_pillar(uint8_t index, int16_t start_x)
 static void init_spikes(void)
 {
     score = 0;
-    prev_score = 0;
     spike_speed = 16;
     current_gap = INITIAL_GAP;
     spike_spacing = INITIAL_SPACING;
@@ -228,8 +159,8 @@ static void init_spikes(void)
 static void update_difficulty(void)
 {
     spike_speed = 16 + (score / 4);
-    if (spike_speed > 36)
-        spike_speed = 36;
+    if (spike_speed > 32)
+        spike_speed = 32;
 
     int16_t temp_gap = INITIAL_GAP - (score / 3);
     if (temp_gap < MIN_GAP)
@@ -237,125 +168,64 @@ static void update_difficulty(void)
     else
         current_gap = (uint8_t)temp_gap;
 
-    int16_t temp_spacing = INITIAL_SPACING - (score / 2);
-    if (temp_spacing < 65)
-        spike_spacing = 65;
+    int16_t temp_spacing = INITIAL_SPACING - (score / 3);
+    if (temp_spacing < 75)
+        spike_spacing = 75;
     else
         spike_spacing = (uint8_t)temp_spacing;
 }
 
-// FULLY CONICAL STONE SPIKES:
-// A true cone where width expands linearly from 0 at the tip (gap boundary) to full base width at screen edge!
-// col_idx: 0 .. (SPIKE_WIDTH - 1)
-// is_upper: true for stalactite hanging from ceiling pointing down; false for stalagmite rising from floor pointing up
-// y: current screen row
-// tip_y: row where the sharp point meets the gap
-// get_conical_spike_pixel removed – inlined in draw_spike_column
-
-// Draw a single vertical column of the dark gray cave background
-static void draw_cave_column(int16_t x)
+// Fast rectangular pipe renderer: paints ONLY solid stone and caps (AIR GAP IS NEVER TOUCHED)
+static void draw_pipe(int16_t x, uint8_t gap_y, uint8_t gap_h)
 {
-    if (x < 0 || x >= TFT_WIDTH)
+    if (x + SPIKE_WIDTH <= 0 || x >= TFT_WIDTH)
         return;
 
-    TFT_SetAddrWindow((uint8_t)x, 0, (uint8_t)x, TFT_HEIGHT - 1);
-    TFT_CS_LOW();
-    TFT_DC_HIGH();
+    int16_t top_h = (int16_t)gap_y - PLAY_CEILING_Y;
+    int16_t bot_y = (int16_t)gap_y + gap_h;
+    int16_t bot_h = TFT_HEIGHT - bot_y;
 
-    for (uint8_t y = 0; y < TFT_HEIGHT; y++)
+    // 1. Top stone pipe
+    if (top_h > 0)
     {
-        TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
-    }
-    TFT_CS_HIGH();
-}
-
-// Draw a single vertical column of a fully conical stone spike pillar
-static void draw_spike_column(int16_t x, uint8_t col_idx, uint8_t gap_y, uint8_t gap_h)
-{
-    if (x < 0 || x >= TFT_WIDTH)
-        return;
-
-    TFT_SetAddrWindow((uint8_t)x, 0, (uint8_t)x, TFT_HEIGHT - 1);
-    TFT_CS_LOW();
-    TFT_DC_HIGH();
-
-    int8_t center_dist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
-    uint8_t upper_h = (gap_y > 1) ? (gap_y - 1) : 1;
-    uint16_t upper_thresh = (uint16_t)center_dist * upper_h;
-
-    // 1. Upper hanging conical stalactite (from ceiling y=0 down to gap_y)
-    for (uint8_t y = 0; y < gap_y; y++)
-    {
-        uint8_t dist_from_tip = (gap_y - 1) - y;
-        if ((uint16_t)dist_from_tip * 10 < upper_thresh)
+        // Left highlight flank
+        TFT_FillRect(x, PLAY_CEILING_Y, 1, top_h, COLOR_SPIKE_LIGHT);
+        // Stone body
+        if (SPIKE_WIDTH > 2)
         {
-            TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
+            TFT_FillRect(x + 1, PLAY_CEILING_Y, SPIKE_WIDTH - 2, top_h, COLOR_SPIKE_BODY);
         }
-        else
+        // Right shadow flank
+        TFT_FillRect(x + SPIKE_WIDTH - 1, PLAY_CEILING_Y, 1, top_h, COLOR_SPIKE_DARK);
+
+        // Stone Cap / Rim at opening (2px tall, 1px wider on each side)
+        if (top_h >= 2)
         {
-            // Inline conical spike color calculation (replaces get_conical_spike_pixel)
-            uint8_t cone_height = gap_y; // tip at gap_y-1, ceiling at 0
-            int8_t half_width = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / cone_height);
-            int8_t cdist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
-            uint16_t color;
-            if (dist_from_tip <= 2)
-                color = COLOR_SPIKE_POINT;
-            else if (cdist > half_width)
-                color = get_cave_pixel(0, y);
-            else if (cdist == half_width)
-                color = (col_idx < (SPIKE_WIDTH / 2)) ? COLOR_SPIKE_LIGHT : COLOR_SPIKE_DARK;
-            else if (cdist < -(half_width / 2))
-                color = COLOR_SPIKE_LIGHT;
-            else if (cdist > (half_width / 2))
-                color = COLOR_SPIKE_DARK;
-            else
-                color = COLOR_SPIKE_BODY;
-            TFT_spiWrite16(color);
+            TFT_FillRect(x - 1, gap_y - 2, SPIKE_WIDTH + 2, 2, COLOR_SPIKE_POINT);
+            TFT_FillRect(x, gap_y - 1, SPIKE_WIDTH, 1, COLOR_SPIKE_LIGHT);
         }
     }
 
-    // 2. Open air gap for Marceline
-    for (uint8_t y = gap_y; y < gap_y + gap_h; y++)
+    // 2. Bottom stone pipe
+    if (bot_h > 0)
     {
-        TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
-    }
-
-    // 3. Lower rising conical stalagmite (from gap_y + gap_h down to floor)
-    uint8_t lower_tip = gap_y + gap_h;
-    uint8_t lower_h = (TFT_HEIGHT - 1 > lower_tip) ? (TFT_HEIGHT - 1 - lower_tip) : 1;
-    uint16_t lower_thresh = (uint16_t)center_dist * lower_h;
-
-    for (uint8_t y = lower_tip; y < TFT_HEIGHT; y++)
-    {
-        uint8_t dist_from_tip = y - lower_tip;
-        if ((uint16_t)dist_from_tip * 10 < lower_thresh)
+        // Left highlight flank
+        TFT_FillRect(x, bot_y, 1, bot_h, COLOR_SPIKE_LIGHT);
+        // Stone body
+        if (SPIKE_WIDTH > 2)
         {
-            TFT_spiWrite16(get_cave_pixel((uint8_t)x, y));
+            TFT_FillRect(x + 1, bot_y, SPIKE_WIDTH - 2, bot_h, COLOR_SPIKE_BODY);
         }
-        else
+        // Right shadow flank
+        TFT_FillRect(x + SPIKE_WIDTH - 1, bot_y, 1, bot_h, COLOR_SPIKE_DARK);
+
+        // Stone Cap / Rim at opening (2px tall, 1px wider on each side)
+        if (bot_h >= 2)
         {
-            // Inline conical spike color calculation for lower part
-            uint8_t cone_height = TFT_HEIGHT - lower_tip; // distance from tip to floor
-            int8_t half_width = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / cone_height);
-            int8_t cdist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
-            uint16_t color;
-            if (dist_from_tip <= 2)
-                color = COLOR_SPIKE_POINT;
-            else if (cdist > half_width)
-                color = get_cave_pixel(0, y);
-            else if (cdist == half_width)
-                color = (col_idx < (SPIKE_WIDTH / 2)) ? COLOR_SPIKE_LIGHT : COLOR_SPIKE_DARK;
-            else if (cdist < -(half_width / 2))
-                color = COLOR_SPIKE_LIGHT;
-            else if (cdist > (half_width / 2))
-                color = COLOR_SPIKE_DARK;
-            else
-                color = COLOR_SPIKE_BODY;
-            TFT_spiWrite16(color);
+            TFT_FillRect(x - 1, bot_y, SPIKE_WIDTH + 2, 2, COLOR_SPIKE_POINT);
+            TFT_FillRect(x, bot_y, SPIKE_WIDTH, 1, COLOR_SPIKE_LIGHT);
         }
     }
-
-    TFT_CS_HIGH();
 }
 
 static void update_and_draw_spikes(uint8_t marcy_x)
@@ -371,11 +241,9 @@ static void update_and_draw_spikes(uint8_t marcy_x)
         spikes[i].x_fp -= spike_speed;
         int16_t new_x = (int16_t)(spikes[i].x_fp >> FP_SHIFT);
 
-        // Score update when Marceline safely passes the spike
         if (!spikes[i].passed && (new_x + SPIKE_WIDTH < marcy_x))
         {
             spikes[i].passed = 1;
-            prev_score = score;
             score++;
             play_sfx(sfx_flappy_score);
             if (score > high_score)
@@ -384,26 +252,32 @@ static void update_and_draw_spikes(uint8_t marcy_x)
             }
         }
 
-        // Clear vacated trailing edge columns on the right
-        for (int16_t clear_x = new_x + SPIKE_WIDTH; clear_x < old_x + SPIKE_WIDTH; clear_x++)
+        // Only redraw when pipe moves across a pixel boundary
+        if (new_x != old_x)
         {
-            if (clear_x >= 0 && clear_x < TFT_WIDTH)
+            int16_t dx = old_x - new_x;
+            int16_t clear_x = new_x + SPIKE_WIDTH;
+            int16_t clear_w = dx + 1; // +1 to also clear the 1px extended cap rim
+
+            int16_t top_h = (int16_t)spikes[i].gap_y - PLAY_CEILING_Y;
+            int16_t bot_y = (int16_t)spikes[i].gap_y + spikes[i].gap_h;
+            int16_t bot_h = TFT_HEIGHT - bot_y;
+
+            // Clear trailing edge on the right (ONLY solid pipe regions, AIR GAP IS NEVER TOUCHED)
+            if (top_h > 0)
             {
-                draw_cave_column(clear_x);
+                TFT_FillRect(clear_x, PLAY_CEILING_Y, clear_w, top_h, COLOR_BG);
             }
+            if (bot_h > 0)
+            {
+                TFT_FillRect(clear_x, bot_y, clear_w, bot_h, COLOR_BG);
+            }
+
+            // Draw pipe at its new position
+            draw_pipe(new_x, spikes[i].gap_y, spikes[i].gap_h);
         }
 
-        // Render spike columns at new position
-        for (uint8_t c = 0; c < SPIKE_WIDTH; c++)
-        {
-            int16_t col_x = new_x + c;
-            if (col_x >= 0 && col_x < TFT_WIDTH)
-            {
-                draw_spike_column(col_x, c, spikes[i].gap_y, spikes[i].gap_h);
-            }
-        }
-
-        // Multi-pillar spawn check
+        // Spawn next pillar when current pillar passes spacing threshold
         if (old_x >= (TFT_WIDTH - spike_spacing) && new_x < (TFT_WIDTH - spike_spacing))
         {
             for (uint8_t j = 0; j < MAX_SPIKES; j++)
@@ -416,15 +290,14 @@ static void update_and_draw_spikes(uint8_t marcy_x)
             }
         }
 
-        // Recycle pillar off left edge
-        if (new_x + SPIKE_WIDTH < 0)
+        // Deactivate when completely off screen to the left
+        if (new_x + SPIKE_WIDTH < -2)
         {
             spikes[i].active = 0;
         }
     }
 }
 
-// Draw Marceline character model (14x14)
 static void draw_marceline(int16_t px, int16_t py, bool rising)
 {
     if (px >= TFT_WIDTH || py >= TFT_HEIGHT || (px + MARCY_W) <= 0 || (py + MARCY_H) <= 0)
@@ -445,65 +318,58 @@ static void draw_marceline(int16_t px, int16_t py, bool rising)
             uint8_t p1 = b >> 4;
             uint8_t p2 = b & 0x0F;
 
-            // Pixel 1
-            if (p1 == 0)
-                TFT_spiWrite16(get_cave_pixel((uint8_t)(px + x), (uint8_t)(py + y)));
-            else
-                TFT_spiWrite16(pgm_read_word(&marcy_palette[p1]));
-
-            // Pixel 2
-            if (p2 == 0)
-                TFT_spiWrite16(get_cave_pixel((uint8_t)(px + x + 1), (uint8_t)(py + y)));
-            else
-                TFT_spiWrite16(pgm_read_word(&marcy_palette[p2]));
+            TFT_spiWrite16(pgm_read_word(&marcy_palette[p1]));
+            TFT_spiWrite16(pgm_read_word(&marcy_palette[p2]));
         }
     }
     TFT_CS_HIGH();
 }
 
-// Erase previous Marceline position by restoring exact cave backdrop
 static void erase_marceline(int16_t px, int16_t py)
 {
     if (px >= TFT_WIDTH || py >= TFT_HEIGHT || (px + MARCY_W) <= 0 || (py + MARCY_H) <= 0)
         return;
 
-    TFT_SetAddrWindow((uint8_t)px, (uint8_t)py, (uint8_t)(px + MARCY_W - 1), (uint8_t)(py + MARCY_H - 1));
-    TFT_CS_LOW();
-    TFT_DC_HIGH();
+    TFT_FillRect(px, py, MARCY_W, MARCY_H, COLOR_BG);
+}
 
-    for (uint8_t y = 0; y < MARCY_H; y++)
-    {
-        for (uint8_t x = 0; x < MARCY_W; x++)
-        {
-            TFT_spiWrite16(get_cave_pixel((uint8_t)(px + x), (uint8_t)(py + y)));
-        }
-    }
-    TFT_CS_HIGH();
+static void reset_score_hud(void)
+{
+    // Draw top HUD ceiling border
+    TFT_DrawHLine_Fast(0, PLAY_CEILING_Y - 1, TFT_WIDTH, COLOR_VAMP_DARK_RED);
+
+    TFT_DrawString(4, 2, "SCORE:", COLOR_VAMP_PALE, COLOR_BG, 1);
+    char score_str[6];
+    utoa16(score, score_str);
+    TFT_DrawString(44, 2, score_str, COLOR_VAMP_RED, COLOR_BG, 1);
+
+    TFT_DrawString(96, 2, "BEST:", COLOR_VAMP_PALE, COLOR_BG, 1);
+    char hs_str[6];
+    utoa16(high_score, hs_str);
+    TFT_DrawString(128, 2, hs_str, COLOR_SPIKE_POINT, COLOR_BG, 1);
 }
 
 static void draw_score(void)
 {
-    static uint16_t last_drawn_score = 0xFFFF; // sentinel value
+    static uint16_t last_drawn_score = 0xFFFF;
     if (score != last_drawn_score)
     {
-        char score_str[8];
-        // Erase previous score by drawing over with background color (optional fast fill)
-        if (last_drawn_score != 0xFFFF)
-        {
-            // Draw background over old score area to clear it
-            TFT_DrawString(TFT_WIDTH / 2 - 8, 6, "      ", COLOR_CAVE_GRAY, COLOR_CAVE_GRAY, 2);
-        }
-        //sprintf(score_str, "%u", score);
+        char score_str[6];
         utoa16(score, score_str);
-        TFT_DrawString(TFT_WIDTH / 2 - 8, 6, score_str, COLOR_VAMP_RED, COLOR_CAVE_GRAY, 2);
+        TFT_FillRect(44, 2, 24, 8, COLOR_BG);
+        TFT_DrawString(44, 2, score_str, COLOR_VAMP_RED, COLOR_BG, 1);
         last_drawn_score = score;
     }
 }
 
-// Conical AABB & Profile Collision Check:
-// Accurate collision checking considering the conical taper of stone spikes!
-static uint8_t check_spike_collision(uint8_t marcy_x, uint8_t marcy_y)
+static uint8_t check_spike_collision(uint8_t marcy_x, int16_t marcy_y)
 {
+    // Bottom floor collision
+    if (marcy_y >= TFT_HEIGHT - MARCY_H - 1)
+    {
+        return 1;
+    }
+
     for (uint8_t i = 0; i < MAX_SPIKES; i++)
     {
         if (!spikes[i].active)
@@ -511,48 +377,31 @@ static uint8_t check_spike_collision(uint8_t marcy_x, uint8_t marcy_y)
 
         int16_t spike_x = (int16_t)(spikes[i].x_fp >> FP_SHIFT);
 
-        // Check horizontal overlap between Marceline (14x14) and Spike (width 20)
-        // With tight 2px inset on Marceline's bounding box
-        if ((marcy_x + MARCY_W - 3) >= spike_x && (marcy_x + 3) <= (spike_x + SPIKE_WIDTH))
+        // Horizontal overlap with forgiving hitbox (2px inset on both sides)
+        if ((marcy_x + MARCY_W - 2) >= spike_x && (marcy_x + 2) <= (spike_x + SPIKE_WIDTH))
         {
-            // Upper stalactite collision check
-            uint8_t upper_tip = spikes[i].gap_y;
-            if (marcy_y < upper_tip)
+            // Vertical collision: hit top stone pipe
+            if (marcy_y < (int16_t)spikes[i].gap_y)
             {
-                // Find horizontal penetration into the cone
-                uint8_t dist_from_tip = upper_tip - marcy_y;
-                int8_t half_w = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / (upper_tip == 0 ? 1 : upper_tip));
-                int8_t center_dist = abs((int8_t)(marcy_x + (MARCY_W / 2)) - (spike_x + (SPIKE_WIDTH / 2)));
-                if (center_dist <= half_w + 2)
-                {
-                    return 1;
-                }
+                return 1;
             }
 
-            // Lower stalagmite collision check
-            uint8_t lower_tip = spikes[i].gap_y + spikes[i].gap_h;
-            if ((marcy_y + MARCY_H - 2) > lower_tip)
+            // Vertical collision: hit bottom stone pipe
+            if ((marcy_y + MARCY_H - 1) > (int16_t)(spikes[i].gap_y + spikes[i].gap_h))
             {
-                uint8_t dist_from_tip = (marcy_y + MARCY_H - 2) - lower_tip;
-                uint8_t cone_h = TFT_HEIGHT - lower_tip;
-                int8_t half_w = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / (cone_h == 0 ? 1 : cone_h));
-                int8_t center_dist = abs((int8_t)(marcy_x + (MARCY_W / 2)) - (spike_x + (SPIKE_WIDTH / 2)));
-                if (center_dist <= half_w + 2)
-                {
-                    return 1;
-                }
+                return 1;
             }
         }
     }
     return 0;
 }
 
-// Centered text drawing helper
 static void draw_string_centered(uint8_t y, const char *str, uint16_t color, uint16_t bg_color, uint8_t size)
 {
     uint8_t len = 0;
     const char *p = str;
-    while (*p++) len++;
+    while (*p++)
+        len++;
     uint8_t str_width = len * 6 * size;
     uint8_t x = (str_width >= TFT_WIDTH) ? 0 : (TFT_WIDTH - str_width) / 2;
     TFT_DrawString(x, y, str, color, bg_color, size);
@@ -566,36 +415,28 @@ void play_flappy_bird(void)
     {
         update_music();
 
-        // 1. Clean Dark Gray Cave Backdrop
-        TFT_SetAddrWindow(0, 0, TFT_WIDTH - 1, TFT_HEIGHT - 1);
-        TFT_CS_LOW();
-        TFT_DC_HIGH();
-        for (uint8_t y = 0; y < TFT_HEIGHT; y++)
-        {
-            for (uint8_t x = 0; x < TFT_WIDTH; x++)
-            {
-                TFT_spiWrite16(get_cave_pixel(x, y));
-            }
-        }
-        TFT_CS_HIGH();
+        // Solid Black Screen Initializer
+        TFT_FillScreen(COLOR_BG);
 
         uint8_t marcy_x = 26;
         int16_t marcy_y = TFT_HEIGHT / 2 - (MARCY_H / 2);
         int16_t marcy_y_prev = marcy_y;
 
         uint8_t end_game = false;
-        int16_t velocity = 0;
-        uint8_t gravity_counter = 0;
+        int32_t marcy_y_fp = (int32_t)marcy_y << FP_SHIFT;
+        int16_t velocity_fp = 0;
         uint32_t frame_timer = millis();
+        bool jump_requested = false;
 
-        // Title Splash Screen
-        draw_string_centered(18, "MARCELINE'S ESCAPE", COLOR_VAMP_RED, COLOR_CAVE_GRAY, 1);
+        draw_string_centered(20, "MARCELINE'S ESCAPE", COLOR_VAMP_RED, COLOR_BG, 1);
         draw_marceline(marcy_x, marcy_y, false);
-        draw_string_centered(TFT_HEIGHT - 22, "PRESS START", COLOR_SPIKE_POINT, COLOR_CAVE_GRAY, 1);
+        draw_string_centered(TFT_HEIGHT - 32, "PRESS START", COLOR_SPIKE_POINT, COLOR_BG, 1);
+        draw_string_centered(TFT_HEIGHT - 18, "UP: Flap   BACK: Exit", COLOR_VAMP_PALE, COLOR_BG, 1);
 
         while (!get_key(START))
         {
             update_music();
+            timer_update();
             if (get_key(BACK))
             {
                 play_again = false;
@@ -606,37 +447,18 @@ void play_flappy_bird(void)
         if (!play_again)
             break;
 
-        // Clear splash text by restoring backdrop pattern
-        TFT_SetAddrWindow(0, 16, TFT_WIDTH - 1, 29);
-        TFT_CS_LOW();
-        TFT_DC_HIGH();
-        for (uint8_t y = 16; y <= 29; y++)
-        {
-            for (uint8_t x = 0; x < TFT_WIDTH; x++)
-            {
-                TFT_spiWrite16(get_cave_pixel(x, y));
-            }
-        }
-        TFT_CS_HIGH();
-
-        TFT_SetAddrWindow(0, TFT_HEIGHT - 26, TFT_WIDTH - 1, TFT_HEIGHT - 13);
-        TFT_CS_LOW();
-        TFT_DC_HIGH();
-        for (uint8_t y = TFT_HEIGHT - 26; y <= TFT_HEIGHT - 13; y++)
-        {
-            for (uint8_t x = 0; x < TFT_WIDTH; x++)
-            {
-                TFT_spiWrite16(get_cave_pixel(x, y));
-            }
-        }
-        TFT_CS_HIGH();
+        // Clear screen to solid black for game start
+        TFT_FillScreen(COLOR_BG);
         init_spikes();
+        reset_score_hud();
+        draw_marceline(marcy_x, marcy_y, false);
+        marcy_y_prev = marcy_y;
+        frame_timer = millis();
 
-        // 2. MAIN GAMEPLAY LOOP
         while (!end_game)
         {
             update_music();
-            uint32_t current_time = millis();
+            timer_update();
 
             if (get_key(BACK))
             {
@@ -645,60 +467,70 @@ void play_flappy_bird(void)
                 break;
             }
 
-            if (current_time - frame_timer >= 16) // 60 FPS tick
+            // Continuous jump polling (buffers input so fast taps are never lost)
+            if (get_key(UP))
             {
-                frame_timer = current_time;
+                jump_requested = true;
+            }
 
-                bool is_rising = false;
-                if (get_key(UP))
+            uint32_t current_time = millis();
+            if (current_time - frame_timer >= 16) // Steady 60 FPS tick
+            {
+                frame_timer += 16;
+                if (current_time - frame_timer > 32)
                 {
-                    velocity = -3;
-                    is_rising = true;
+                    frame_timer = current_time;
                 }
 
-                // Gravity Simulation
-                gravity_counter++;
-                if (gravity_counter >= 4)
+                // Physics update
+                if (jump_requested)
                 {
-                    gravity_counter = 0;
-                    if (velocity < 2)
-                    {
-                        velocity++;
-                    }
+                    velocity_fp = -40; // Immediate upward impulse (-2.5 px/frame)
+                    jump_requested = false;
+                }
+                else
+                {
+                    velocity_fp += 3; // Smooth gravitational acceleration
+                    if (velocity_fp > 48)
+                        velocity_fp = 48; // Terminal fall velocity (3.0 px/frame)
                 }
 
-                marcy_y += velocity;
+                marcy_y_fp += velocity_fp;
+                marcy_y = marcy_y_fp >> FP_SHIFT;
 
-                // Ceiling and floor bounds
-                if (marcy_y < 1)
+                // Ceiling clamp (doesn't kill, smooth bonk)
+                if (marcy_y < PLAY_CEILING_Y)
                 {
-                    marcy_y = 1;
-                    velocity = 0;
+                    marcy_y = PLAY_CEILING_Y;
+                    marcy_y_fp = (int32_t)PLAY_CEILING_Y << FP_SHIFT;
+                    if (velocity_fp < 0)
+                        velocity_fp = 0;
                 }
-                if (marcy_y >= TFT_HEIGHT - MARCY_H - 1)
+                else if (marcy_y >= TFT_HEIGHT - MARCY_H - 1)
                 {
                     marcy_y = TFT_HEIGHT - MARCY_H - 1;
                     play_sfx(sfx_gameover_1);
                     end_game = true;
                 }
 
-                // Update stone conical spikes
-                update_and_draw_spikes(marcy_x);
-
-                // Erase previous Marceline position if it changed
+                // 1. Erase Marcy's old position
                 if (marcy_y != marcy_y_prev)
                 {
                     erase_marceline(marcy_x, marcy_y_prev);
                 }
 
-                // Render Marceline at new position
-                draw_marceline(marcy_x, marcy_y, is_rising || (velocity < 0));
+                // 2. Update and draw pipes (AIR GAP IS NEVER TOUCHED)
+                update_and_draw_spikes(marcy_x);
+
+                // 3. Draw Marcy at new position
+                draw_marceline(marcy_x, marcy_y, velocity_fp < 0);
                 marcy_y_prev = marcy_y;
 
+                // 4. Update HUD score
                 draw_score();
 
-                // Conical spike collision check
-                if (check_spike_collision(marcy_x, (uint8_t)marcy_y))
+                // 5. Collision detection
+                if (check_spike_collision(marcy_x, marcy_y))
                 {
                     play_sfx(sfx_gameover_2);
                     end_game = true;
@@ -706,14 +538,13 @@ void play_flappy_bird(void)
             }
         }
 
-        // 3. GAME OVER SCREEN (Clean Dark Cave Tomb Theme)
         if (play_again)
         {
             play_sfx(sfx_gameover_fast);
-            TFT_FillScreen(COLOR_CAVE_DARK_SPOT);
+            TFT_FillScreen(COLOR_BG);
 
-            // Dialog Frame
-            TFT_FillRect(12, 15, 136, 98, COLOR_CAVE_GRAY);
+            // Modal dialog frame
+            TFT_FillRect(12, 15, 136, 98, COLOR_BG);
             TFT_DrawHLine_Fast(12, 15, 136, COLOR_SPIKE_POINT);
             TFT_DrawHLine_Fast(12, 112, 136, COLOR_SPIKE_POINT);
             TFT_DrawVLine_Fast(12, 15, 98, COLOR_SPIKE_POINT);
@@ -724,29 +555,20 @@ void play_flappy_bird(void)
             TFT_DrawVLine_Fast(14, 17, 94, COLOR_VAMP_RED);
             TFT_DrawVLine_Fast(145, 17, 94, COLOR_VAMP_RED);
 
-            // Header Banner
-            TFT_FillRect(15, 18, 130, 22, COLOR_CAVE_DARK_SPOT);
-            draw_string_centered(25, "TRAPPED IN THE CAVE!", COLOR_VAMP_RED, COLOR_CAVE_DARK_SPOT, 1);
+            TFT_FillRect(15, 18, 130, 20, 0x18C3);
+            draw_string_centered(24, "TRAPPED IN THE CAVE!", COLOR_VAMP_RED, 0x18C3, 1);
 
-            // Score Badges
-            // Use static buffer to avoid stack churn
             static char score_buf[16];
-            // Build "SCORE: <num>"
             const char score_label[] = "SCORE: ";
             memcpy(score_buf, score_label, sizeof(score_label) - 1);
             utoa16(score, score_buf + (sizeof(score_label) - 1));
-            // Null‑terminate (max 5 digits for uint16_t)
-            score_buf[sizeof(score_label) - 1 + 5] = '\0';
-            draw_string_centered(48, score_buf, COLOR_SPIKE_POINT, COLOR_CAVE_GRAY, 1);
+            draw_string_centered(46, score_buf, COLOR_SPIKE_POINT, COLOR_BG, 1);
 
-            // Build "BEST : <num>"
             const char best_label[] = "BEST : ";
             memcpy(score_buf, best_label, sizeof(best_label) - 1);
             utoa16(high_score, score_buf + (sizeof(best_label) - 1));
-            score_buf[sizeof(best_label) - 1 + 5] = '\0';
-            draw_string_centered(60, score_buf, COLOR_VAMP_PALE, COLOR_CAVE_GRAY, 1);
+            draw_string_centered(58, score_buf, COLOR_VAMP_PALE, COLOR_BG, 1);
 
-            // Buttons
             TFT_FillRect(22, 74, 116, 16, 0x1B64);
             TFT_DrawHLine_Fast(22, 74, 116, 0x3FE0);
             TFT_DrawHLine_Fast(22, 89, 116, 0x3FE0);
@@ -780,4 +602,3 @@ void play_flappy_bird(void)
     }
     stop_song();
 }
-
