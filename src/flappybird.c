@@ -639,7 +639,7 @@ void play_flappy_bird(void)
         // 3. GAME OVER SCREEN (Clean Dark Cave Tomb Theme)
         if (play_again)
         {
-            play_sfx(sfx_gameover_fast);
+            play_sfx(sfx_gameover_1);
             TFT_FillScreen(COLOR_CAVE_DARK_SPOT);
 
             // Dialog Frame

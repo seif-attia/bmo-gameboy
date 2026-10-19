@@ -661,7 +661,6 @@ void play_snake(void)
         draw_jake_head(snake[0].x, snake[0].y, current_dir);
 
         uint8_t end = false;
-        uint8_t end = false;
         while (!end)
         {
             timer_update();
@@ -760,6 +759,7 @@ void play_snake(void)
                         if (snake[0].x < 0 || snake[0].x >= BOARD_WIDTH ||
                             snake[0].y < 0 || snake[0].y >= BOARD_HEIGHT)
                         {
+                            play_sfx(sfx_snake_hit_wall);
                             end = true;
                             break;
                         }
@@ -776,6 +776,7 @@ void play_snake(void)
                         }
                         if (self_collision)
                         {
+                            play_sfx(sfx_snake_hit_wall);
                             end = true;
                             break;
                         }
@@ -788,6 +789,7 @@ void play_snake(void)
                                 snake_length++;
                             }
                             score += 10;
+                            play_sfx(sfx_snake_eat);
                             if (move_interval > 100)
                             {
                                 move_interval -= 2;
