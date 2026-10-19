@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "controller.h"
 #include "music.h"
+#include "sfx.h"
 
 #define TFT_CS_LOW()   CLR_BIT(PORTB, TFT_CS)
 #define TFT_CS_HIGH()  SET_BIT(PORTB, TFT_CS)
@@ -402,6 +403,7 @@ void play_dino(void)
             {
                 dino.vy = JUMP_IMPULSE;
                 dino.is_jumping = true;
+                play_sfx(sfx_dino_jump);
             }
             break;
 
@@ -458,6 +460,7 @@ void play_dino(void)
             {
                 spawn_obstacle(&obstacle, false);
                 score += 10;
+                play_sfx(sfx_flappy_score);
 
                 if (score % 60 == 0 && scroll_speed < 7)
                 {
@@ -482,6 +485,7 @@ void play_dino(void)
                 dino_by + dino_bh > obs_by)
             {
                 current_state = GAME_STATE_GAME_OVER;
+                play_sfx(sfx_gameover_fast);
             }
         }
 

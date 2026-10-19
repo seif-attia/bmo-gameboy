@@ -3,6 +3,7 @@
 #include "TFT.h"
 #include "timer.h"
 #include "music.h"
+#include "sfx.h"
 #include <stdio.h>
 #include <stdbool.h>
 
@@ -568,6 +569,14 @@ void play_tic_tac_toe(void)
             if (board[cursor_r][cursor_c] == 0)
             {
                 board[cursor_r][cursor_c] = current_turn;
+                if (current_turn == 1)
+                {
+                    play_sfx(sfx_tictactoe_x);
+                }
+                else
+                {
+                    play_sfx(sfx_tictactoe_o);
+                }
                 draw_cell(cursor_r, cursor_c);
 
                 uint8_t outcome = check_winner();
@@ -576,10 +585,16 @@ void play_tic_tac_toe(void)
                     if (outcome == 1)
                     {
                         score_ik++;
+                        play_sfx(sfx_tictactoe_win);
                     }
                     else if (outcome == 2)
                     {
                         score_gunter++;
+                        play_sfx(sfx_tictactoe_win);
+                    }
+                    else
+                    {
+                        play_sfx(sfx_gameover_retro);
                     }
                     draw_scoreboard();
 

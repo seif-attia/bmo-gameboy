@@ -71,10 +71,10 @@ static void utoa16(uint16_t val, char *buf)
 #define COLOR_VAMP_PALE 0xDEFB     // Marceline pale skin accent
 
 static const uint16_t marcy_palette[16] PROGMEM = {
-    COLOR_BG,   0x0000, 0x18C5, 0xCE79,
-    0xF800,     0x3186, 0x528A, 0x2A54,
-    0x118C,     0x59A4, 0xD800, 0xFFFF,
-    0xBDF7,     0x0841, 0xFFFF, 0x8800};
+    COLOR_BG, 0x0000, 0x18C5, 0xCE79,
+    0xF800, 0x3186, 0x528A, 0x2A54,
+    0x118C, 0x59A4, 0xD800, 0xFFFF,
+    0xBDF7, 0x0841, 0xFFFF, 0x8800};
 
 static const uint8_t marceline_float_sprite[98] PROGMEM = {
     0x00, 0x01, 0x11, 0x10, 0x00, 0x00, 0x00,
@@ -325,14 +325,6 @@ static void draw_marceline(int16_t px, int16_t py, bool rising)
     TFT_CS_HIGH();
 }
 
-static void erase_marceline(int16_t px, int16_t py)
-{
-    if (px >= TFT_WIDTH || py >= TFT_HEIGHT || (px + MARCY_W) <= 0 || (py + MARCY_H) <= 0)
-        return;
-
-    TFT_FillRect(px, py, MARCY_W, MARCY_H, COLOR_BG);
-}
-
 static void reset_score_hud(void)
 {
     // Draw top HUD ceiling border
@@ -513,16 +505,33 @@ void play_flappy_bird(void)
                     end_game = true;
                 }
 
-                // 1. Erase Marcy's old position
-                if (marcy_y != marcy_y_prev)
-                {
-                    erase_marceline(marcy_x, marcy_y_prev);
-                }
-
-                // 2. Update and draw pipes (AIR GAP IS NEVER TOUCHED)
+                // 1. Update and draw pipes (AIR GAP IS NEVER TOUCHED)
                 update_and_draw_spikes(marcy_x);
 
-                // 3. Draw Marcy at new position
+                // 2. Erase only the exposed boundary slivers instead of the whole bounding box (eliminates flicker)
+                if (marcy_y != marcy_y_prev)
+                {
+                    if (marcy_y > marcy_y_prev)
+                    {
+                        // Moving DOWN: clear the sliver left exposed above
+                        int16_t dy = marcy_y - marcy_y_prev;
+                        if (dy >= MARCY_H)
+                            TFT_FillRect(marcy_x, marcy_y_prev, MARCY_W, MARCY_H, COLOR_BG);
+                        else
+                            TFT_FillRect(marcy_x, marcy_y_prev, MARCY_W, dy, COLOR_BG);
+                    }
+                    else
+                    {
+                        // Moving UP: clear the sliver left exposed below
+                        int16_t dy = marcy_y_prev - marcy_y;
+                        if (dy >= MARCY_H)
+                            TFT_FillRect(marcy_x, marcy_y_prev, MARCY_W, MARCY_H, COLOR_BG);
+                        else
+                            TFT_FillRect(marcy_x, marcy_y + MARCY_H, MARCY_W, dy, COLOR_BG);
+                    }
+                }
+
+                // 3. Immediately draw Marceline at new position
                 draw_marceline(marcy_x, marcy_y, velocity_fp < 0);
                 marcy_y_prev = marcy_y;
 
@@ -532,7 +541,7 @@ void play_flappy_bird(void)
                 // 5. Collision detection
                 if (check_spike_collision(marcy_x, marcy_y))
                 {
-                    play_sfx(sfx_gameover_2);
+                    play_sfx(sfx_gameover_1);
                     end_game = true;
                 }
             }
@@ -540,7 +549,7 @@ void play_flappy_bird(void)
 
         if (play_again)
         {
-            play_sfx(sfx_gameover_fast);
+            play_sfx(sfx_gameover_1);
             TFT_FillScreen(COLOR_BG);
 
             // Modal dialog frame
