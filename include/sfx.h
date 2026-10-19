@@ -13,6 +13,7 @@ extern const char sfx_gameover_3[] PROGMEM;
 
 // Snake
 extern const char sfx_snake_eat[] PROGMEM;
+extern const char sfx_snake_hit_wall[] PROGMEM;
 
 // Flappy Bird & Dino
 extern const char sfx_flappy_score[] PROGMEM;

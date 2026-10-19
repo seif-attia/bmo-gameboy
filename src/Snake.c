@@ -664,7 +664,8 @@ static void snake_init(void)
     current_dir = DIR_RIGHT;
     next_dir = DIR_RIGHT;
     score = 0;
-    move_interval = 250;
+    move_interval = 224;
+    move_interval = 224;
 
     snake[0].x = 10;
     snake[0].y = 8;
