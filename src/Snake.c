@@ -804,6 +804,7 @@ void play_snake(void)
                 if (snake[0].x < 0 || snake[0].x >= BOARD_WIDTH ||
                     snake[0].y < 0 || snake[0].y >= BOARD_HEIGHT)
                 {
+                    play_sfx(sfx_snake_hit_wall);
                     end = true;
                     break;
                 }
@@ -820,6 +821,7 @@ void play_snake(void)
                 }
                 if (self_collision)
                 {
+                    play_sfx(sfx_snake_hit_wall);
                     end = true;
                     break;
                 }
