@@ -41,7 +41,7 @@ void menu(void)
     else
         TFT_DrawString(5, 115, "  ", MENU_TEXT, MENU_BACKGROUND, 1);
 
-    TFT_DrawString(20, 115, "CATCH!", MENU_TEXT, MENU_BACKGROUND, 1);
+    TFT_DrawString(20, 115, "CATCH! ", MENU_TEXT, MENU_BACKGROUND, 1);
 }
 
 void menu_down(void)

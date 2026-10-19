@@ -3,6 +3,7 @@
 #include "TFT.h"
 #include "timer.h"
 #include "music.h"
+#include "sfx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -594,11 +595,13 @@ void play_pong(void)
                 {
                     ball_y = TOP_BOUNDARY;
                     ball_vy = -ball_vy;
+                    play_sfx(sfx_pong_wall);
                 }
                 else if (ball_y + BALL_SIZE >= BOTTOM_BOUNDARY)
                 {
                     ball_y = BOTTOM_BOUNDARY - BALL_SIZE;
                     ball_vy = -ball_vy;
+                    play_sfx(sfx_pong_wall);
                 }
 
                 // Specular reflection off left paddle
@@ -608,6 +611,7 @@ void play_pong(void)
                     {
                         ball_x = LEFT_PADDLE_X + PADDLE_W;
                         ball_vx = -ball_vx;
+                        play_sfx(sfx_pong_hit);
                     }
                 }
 
@@ -618,6 +622,7 @@ void play_pong(void)
                     {
                         ball_x = RIGHT_PADDLE_X - BALL_SIZE;
                         ball_vx = -ball_vx;
+                        play_sfx(sfx_pong_hit);
                     }
                 }
 
@@ -626,6 +631,7 @@ void play_pong(void)
                 {
                     // Player 2 scores a point
                     p2_points++;
+                    play_sfx(sfx_pong_score);
                     draw_current_round_score();
 
                     if (p2_points >= POINTS_TO_WIN_ROUND)
@@ -640,6 +646,7 @@ void play_pong(void)
                 {
                     // Player 1 scores a point
                     p1_points++;
+                    play_sfx(sfx_pong_score);
                     draw_current_round_score();
 
                     if (p1_points >= POINTS_TO_WIN_ROUND)
@@ -659,6 +666,8 @@ void play_pong(void)
         // Show round winner banner if round ended with a win
         if (!exit_game && (p1_points >= POINTS_TO_WIN_ROUND || p2_points >= POINTS_TO_WIN_ROUND))
         {
+            play_sfx(sfx_tictactoe_win);
+
             // Banner box centered: 120 px wide -> (160 - 120)/2 = 20, 32 px high -> y=48..80
             TFT_FillRect(20, 48, 120, 32, TFT_BLACK);
             TFT_DrawHLine_Fast(20, 48, 120, TFT_WHITE);

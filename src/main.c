@@ -127,6 +127,7 @@ int main(void)
                     stop_song();
                     play_tic_tac_toe();
                     TFT_FillScreen(MENU_BACKGROUND);
+                    battery_force_redraw();
                     menu();
                 }
                 else if (menu_get_selected() == 1)
@@ -134,6 +135,7 @@ int main(void)
                     stop_song();
                     play_snake();
                     TFT_FillScreen(MENU_BACKGROUND);
+                    battery_force_redraw();
                     menu();
                 }
                 else if (menu_get_selected() == 2)
@@ -141,6 +143,7 @@ int main(void)
                     stop_song();
                     play_flappy_bird();
                     TFT_FillScreen(MENU_BACKGROUND);
+                    battery_force_redraw();
                     menu();
                 }
                 else if (menu_get_selected() == 3)
@@ -148,6 +151,7 @@ int main(void)
                     stop_song();
                     play_dino();
                     TFT_FillScreen(MENU_BACKGROUND);
+                    battery_force_redraw();
                     menu();
                 }
                 else if (menu_get_selected() == 4)
@@ -155,6 +159,7 @@ int main(void)
                     stop_song();
                     play_pong();
                     TFT_FillScreen(MENU_BACKGROUND);
+                    battery_force_redraw();
                     menu();
                 }
             }
