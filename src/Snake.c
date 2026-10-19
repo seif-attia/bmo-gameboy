@@ -678,14 +678,18 @@ void play_snake(void)
         if (!again)
             break;
 
-        // Clear "PRESS START" text by restoring background cells
-        for (int8_t gy = 8; gy <= 11; gy++)
+        // Clear "PRESS START" text (drawn at x: 47..112, y: 58..65) by restoring exact pixel region
+        TFT_SetAddrWindow(44, 56, 115, 67);
+        TFT_CS_LOW();
+        TFT_DC_HIGH();
+        for (uint8_t y = 56; y <= 67; y++)
         {
-            for (int8_t gx = 6; gx <= 20; gx++)
+            for (uint8_t x = 44; x <= 115; x++)
             {
-                restore_candy_kingdom_cell(gx, gy);
+                TFT_spiWrite16(get_candy_kingdom_pixel(x, y));
             }
         }
+        TFT_CS_HIGH();
         // Ensure candy and Jake remain clean if overlapped
         draw_candy(food.x, food.y, food_type);
         for (uint8_t i = 1; i < snake_length; i++)

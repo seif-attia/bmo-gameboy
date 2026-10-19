@@ -23,7 +23,35 @@
 #define INITIAL_GAP 68
 #define INITIAL_SPACING 105
 #define MIN_GAP 48
-#define MAX_SPIKES 4
+#define MAX_SPIKES 3
+
+// Lightweight unsigned integer to ASCII conversion (no sprintf)
+static void utoa16(uint16_t val, char *buf)
+{
+    // Write digits in reverse order then reverse the string.
+    char *p = buf;
+    if (val == 0)
+    {
+        *p++ = '0';
+        *p = '\0';
+        return;
+    }
+    while (val > 0)
+    {
+        *p++ = '0' + (val % 10);
+        val /= 10;
+    }
+    // Reverse the string in place
+    char *end = p - 1;
+    while (buf < end)
+    {
+        char tmp = *buf;
+        *buf++ = *end;
+        *end-- = tmp;
+    }
+    *p = '\0';
+}
+
 
 // Fixed-point scaling factor: 1 pixel = 16 sub-pixel units
 #define FP_SHIFT 4
@@ -222,48 +250,7 @@ static void update_difficulty(void)
 // is_upper: true for stalactite hanging from ceiling pointing down; false for stalagmite rising from floor pointing up
 // y: current screen row
 // tip_y: row where the sharp point meets the gap
-static uint16_t get_conical_spike_pixel(uint8_t col_idx, uint8_t y, uint8_t tip_y, bool is_upper)
-{
-    // Distance from the tip of the cone towards its base
-    uint8_t dist_from_tip = is_upper ? (tip_y - y) : (y - tip_y);
-    uint8_t cone_height = is_upper ? tip_y : (TFT_HEIGHT - 1 - tip_y);
-
-    if (cone_height == 0) cone_height = 1;
-
-    // Linear cone expansion: radius(d) = (d * (SPIKE_WIDTH / 2)) / cone_height
-    // At tip (dist=0): radius = 0 (only sharp central point)
-    // At base (dist=cone_height): radius = SPIKE_WIDTH / 2 (full 20px base at the ceiling/floor)
-    int8_t half_width = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / cone_height);
-    int8_t center_dist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
-
-    // Outside the conical silhouette: render dark gray cave air
-    if (center_dist > half_width)
-    {
-        return get_cave_pixel(0, y);
-    }
-
-    // Razor-sharp needle point right at the tip
-    if (dist_from_tip <= 2)
-    {
-        return COLOR_SPIKE_POINT;
-    }
-
-    // Outer edge boundary facet
-    if (center_dist == half_width)
-    {
-        return (col_idx < (SPIKE_WIDTH / 2)) ? COLOR_SPIKE_LIGHT : COLOR_SPIKE_DARK;
-    }
-
-    // Chiseled conical stone shading:
-    // Left side illuminated by ambient light, right side shaded
-    int8_t normalized = (int8_t)col_idx - (SPIKE_WIDTH / 2); // -half_width .. +half_width
-    if (normalized < -(half_width / 2))
-        return COLOR_SPIKE_LIGHT;
-    else if (normalized > (half_width / 2))
-        return COLOR_SPIKE_DARK;
-    else
-        return COLOR_SPIKE_BODY;
-}
+// get_conical_spike_pixel removed – inlined in draw_spike_column
 
 // Draw a single vertical column of the dark gray cave background
 static void draw_cave_column(int16_t x)
@@ -306,7 +293,24 @@ static void draw_spike_column(int16_t x, uint8_t col_idx, uint8_t gap_y, uint8_t
         }
         else
         {
-            TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, gap_y - 1, true));
+            // Inline conical spike color calculation (replaces get_conical_spike_pixel)
+            uint8_t cone_height = gap_y; // tip at gap_y-1, ceiling at 0
+            int8_t half_width = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / cone_height);
+            int8_t cdist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
+            uint16_t color;
+            if (dist_from_tip <= 2)
+                color = COLOR_SPIKE_POINT;
+            else if (cdist > half_width)
+                color = get_cave_pixel(0, y);
+            else if (cdist == half_width)
+                color = (col_idx < (SPIKE_WIDTH / 2)) ? COLOR_SPIKE_LIGHT : COLOR_SPIKE_DARK;
+            else if (cdist < -(half_width / 2))
+                color = COLOR_SPIKE_LIGHT;
+            else if (cdist > (half_width / 2))
+                color = COLOR_SPIKE_DARK;
+            else
+                color = COLOR_SPIKE_BODY;
+            TFT_spiWrite16(color);
         }
     }
 
@@ -330,7 +334,24 @@ static void draw_spike_column(int16_t x, uint8_t col_idx, uint8_t gap_y, uint8_t
         }
         else
         {
-            TFT_spiWrite16(get_conical_spike_pixel(col_idx, y, lower_tip, false));
+            // Inline conical spike color calculation for lower part
+            uint8_t cone_height = TFT_HEIGHT - lower_tip; // distance from tip to floor
+            int8_t half_width = (int8_t)(((uint16_t)dist_from_tip * (SPIKE_WIDTH / 2)) / cone_height);
+            int8_t cdist = abs((int8_t)col_idx - (SPIKE_WIDTH / 2));
+            uint16_t color;
+            if (dist_from_tip <= 2)
+                color = COLOR_SPIKE_POINT;
+            else if (cdist > half_width)
+                color = get_cave_pixel(0, y);
+            else if (cdist == half_width)
+                color = (col_idx < (SPIKE_WIDTH / 2)) ? COLOR_SPIKE_LIGHT : COLOR_SPIKE_DARK;
+            else if (cdist < -(half_width / 2))
+                color = COLOR_SPIKE_LIGHT;
+            else if (cdist > (half_width / 2))
+                color = COLOR_SPIKE_DARK;
+            else
+                color = COLOR_SPIKE_BODY;
+            TFT_spiWrite16(color);
         }
     }
 
@@ -462,17 +483,21 @@ static void erase_marceline(int16_t px, int16_t py)
 
 static void draw_score(void)
 {
-    char score_str[8];
-    if (prev_score != score)
+    static uint16_t last_drawn_score = 0xFFFF; // sentinel value
+    if (score != last_drawn_score)
     {
-        sprintf(score_str, "%u", prev_score);
-        TFT_DrawString(TFT_WIDTH / 2 - 8, 6, score_str, COLOR_CAVE_GRAY, COLOR_CAVE_GRAY, 2);
+        char score_str[8];
+        // Erase previous score by drawing over with background color (optional fast fill)
+        if (last_drawn_score != 0xFFFF)
+        {
+            // Draw background over old score area to clear it
+            TFT_DrawString(TFT_WIDTH / 2 - 8, 6, "      ", COLOR_CAVE_GRAY, COLOR_CAVE_GRAY, 2);
+        }
+        //sprintf(score_str, "%u", score);
+        utoa16(score, score_str);
+        TFT_DrawString(TFT_WIDTH / 2 - 8, 6, score_str, COLOR_VAMP_RED, COLOR_CAVE_GRAY, 2);
+        last_drawn_score = score;
     }
-
-    sprintf(score_str, "%u", score);
-    TFT_DrawString(TFT_WIDTH / 2 - 8, 6, score_str, COLOR_VAMP_RED, COLOR_CAVE_GRAY, 2);
-
-    prev_score = score;
 }
 
 // Conical AABB & Profile Collision Check:
@@ -704,11 +729,21 @@ void play_flappy_bird(void)
             draw_string_centered(25, "TRAPPED IN THE CAVE!", COLOR_VAMP_RED, COLOR_CAVE_DARK_SPOT, 1);
 
             // Score Badges
-            char score_buf[20];
-            sprintf(score_buf, "SCORE: %u", score);
+            // Use static buffer to avoid stack churn
+            static char score_buf[16];
+            // Build "SCORE: <num>"
+            const char score_label[] = "SCORE: ";
+            memcpy(score_buf, score_label, sizeof(score_label) - 1);
+            utoa16(score, score_buf + (sizeof(score_label) - 1));
+            // Null‑terminate (max 5 digits for uint16_t)
+            score_buf[sizeof(score_label) - 1 + 5] = '\0';
             draw_string_centered(48, score_buf, COLOR_SPIKE_POINT, COLOR_CAVE_GRAY, 1);
 
-            sprintf(score_buf, "BEST : %u", high_score);
+            // Build "BEST : <num>"
+            const char best_label[] = "BEST : ";
+            memcpy(score_buf, best_label, sizeof(best_label) - 1);
+            utoa16(high_score, score_buf + (sizeof(best_label) - 1));
+            score_buf[sizeof(best_label) - 1 + 5] = '\0';
             draw_string_centered(60, score_buf, COLOR_VAMP_PALE, COLOR_CAVE_GRAY, 1);
 
             // Buttons
